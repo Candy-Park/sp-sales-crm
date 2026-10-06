@@ -1,22 +1,29 @@
+import {id,writeInput} from './write-input.mjs';
 const projectUrl='https://glscckjmlwvxilzneqdf.supabase.co';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function reply(status, body) {
   return Response.json(body,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
 }
 export async function handleApi(request, env, fetcher=fetch) {
-  if(request.method!=='GET') return reply(405,{error:'지원하지 않는 요청입니다.'});
   const path=new URL(request.url).pathname;
-  if(!['/api/me','/api/dashboard'].includes(path)) return reply(404,{error:'요청한 기능이 없습니다.'});
+  const detail=/^\/api\/inquiries\/([0-9a-f-]+)$/i.exec(path);
+  const addAction=/^\/api\/inquiries\/([0-9a-f-]+)\/actions$/i.exec(path);
+  const close=/^\/api\/inquiries\/([0-9a-f-]+)\/close$/i.exec(path);
+  const editAction=/^\/api\/actions\/([0-9a-f-]+)$/i.exec(path);
+  const methods=detail?['GET','PATCH']:addAction||close?['POST']:editAction||path==='/api/parties'?['PATCH']:path==='/api/inquiries'?['GET','POST']:['GET'];
+  if(!methods.includes(request.method)) return reply(405,{error:'지원하지 않는 요청입니다.'});
+  if(!['/api/me','/api/dashboard','/api/lookups','/api/inquiries','/api/parties'].includes(path)&&!detail&&!addAction&&!close&&!editAction) return reply(404,{error:'요청한 기능이 없습니다.'});
+  for(const match of [detail,addAction,close,editAction])if(match){try{id(match[1]);}catch{return reply(400,{error:'항목 식별자를 확인해주세요.'});}}
   if(env.SUPABASE_URL!==projectUrl || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(env.SUPABASE_PUBLISHABLE_KEY ?? ''))
     return reply(503,{error:'CRM 연결 설정을 확인해야 합니다.'});
   const authorization=request.headers.get('authorization') ?? '';
   if(!/^Bearer [A-Za-z0-9._~-]+$/.test(authorization) || authorization.length>8192)
     return reply(401,{error:'로그인이 필요합니다.'});
   const headers={apikey:env.SUPABASE_PUBLISHABLE_KEY,authorization};
-  const call=async (route,params={})=>{
+  const call=async (route,params={},body)=>{
     const url=new URL(route,projectUrl);
     for(const [key,value] of Object.entries(params)) url.searchParams.set(key,value);
-    return fetcher(url.href,{headers,signal:AbortSignal.timeout(10000)});
+    return fetcher(url.href,{method:body?'POST':'GET',headers:body?{...headers,'content-type':'application/json'}:headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});
   };
   try {
     // Auth server validation; never authorize from unverified JWT decoding or user_metadata.
@@ -37,12 +44,54 @@ export async function handleApi(request, env, fetcher=fetch) {
       const data=await response.json();if(!Array.isArray(data)) throw new Error('invalid response');
       return data;
     };
+    if(request.method!=='GET'){
+      let body;
+      try{
+        if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('JSON 입력이 필요합니다.');
+        const raw=await request.text();if(raw.length>700000)throw new Error('입력 내용이 너무 큽니다.');body=JSON.parse(raw);
+      }catch{return reply(400,{error:'입력 형식과 크기를 확인해주세요.'});}
+      const operation=path==='/api/inquiries'?'register':addAction?'action':editAction?'action-edit':close?'close':detail?'inquiry-edit':'party';
+      let data;try{data=writeInput(operation,body);}catch(error){return reply(400,{error:error.message});}
+      const rpc={register:'sales_register_inquiry',action:'sales_add_action','action-edit':'sales_edit_action',close:'sales_close_inquiry','inquiry-edit':'sales_edit_inquiry',party:'sales_edit_party'}[operation];
+      const params={p_data:data};if(addAction)params.p_inquiry_id=addAction[1];if(editAction||close||detail)params.p_id=(editAction||close||detail)[1];
+      const response=await call('/rest/v1/rpc/'+rpc,{},params);
+      if(!response.ok){
+        const failure=await response.json().catch(()=>({}));
+        if(['40001','40P01'].includes(failure.code))return reply(409,{error:'저장된 내용이 변경됐거나 처리 결과 확인이 필요합니다. 입력을 유지한 채 재조회해주세요.'});
+        if(['23514','23503','23502','23505','22007','22008','22P02'].includes(failure.code))return reply(422,{error:failure.code==='23505'?'같은 고객사가 있습니다. 재조회 후 기존 고객사를 선택해주세요.':'필수 항목, 연결 관계, 취소 사유 또는 미완료 필수 Action을 확인해주세요. 종료된 문의와 완료·취소 Action은 수정할 수 없습니다.'});
+        if(failure.code==='42501')return reply(403,{error:'쓰기 권한이 아직 적용되지 않았거나 이 항목에 접근할 수 없습니다.'});
+        return reply(503,{error:'저장 결과를 확인하지 못했습니다. 입력을 유지했습니다. 재조회 후 같은 요청으로 다시 시도해주세요.'});
+      }
+      return reply(200,{result:await response.json()});
+    }
+    if(path==='/api/lookups'){
+      const [customers,contacts,projects]=await Promise.all([
+        read('sales_customer','id,name,updated_at',{order:'name.asc',limit:'1001'}),
+        read('sales_contact','id,customer_id,name,contact_note,updated_at',{order:'name.asc',limit:'1001'}),
+        read('sales_project','id,customer_id,name,description,updated_at',{order:'name.asc',limit:'1001'})]);
+      return reply(200,{customers:customers.slice(0,1000),contacts:contacts.slice(0,1000),projects:projects.slice(0,1000),truncated:[customers,contacts,projects].some(a=>a.length>1000)});
+    }
+    if(path==='/api/inquiries'){
+      const query=new URL(request.url).searchParams;const filters={order:'received_at.desc,id.asc',limit:'101'};
+      for(const key of ['customer_id','project_id'])if(query.has(key)){try{filters[key]='eq.'+id(query.get(key));}catch{return reply(400,{error:'조회 조건을 확인해주세요.'});}}
+      const offset=query.get('offset')??'0';if(!/^\d{1,7}$/.test(offset))return reply(400,{error:'페이지를 확인해주세요.'});filters.offset=offset;
+      const inquiries=await read('sales_inquiry','id,customer_id,project_id,title,status,next_action,received_at',filters);
+      return reply(200,{inquiries:inquiries.slice(0,100),hasMore:inquiries.length>100});
+    }
+    if(detail){
+      const inquiries=await read('sales_inquiry','*',{id:'eq.'+detail[1],limit:'1'});
+      if(!inquiries.length)return reply(404,{error:'문의를 찾을 수 없습니다.'});
+      // Pagination prevents a long history being silently discarded.
+      const actions=[];let offset=0;
+      for(;;){const page=await read('sales_action','*',{inquiry_id:'eq.'+detail[1],order:'created_at.asc,id.asc',limit:'500',offset:String(offset)});actions.push(...page);if(page.length<500)break;offset+=500;if(offset>=10000)throw new Error('Action history too large');}
+      return reply(200,{inquiry:inquiries[0],actions});
+    }
     const [actions,inquiries]=await Promise.all([
-      read('sales_action','id,inquiry_id,kind,description,due_date,status,mandatory',{status:'eq.open',order:'due_date.asc.nullslast',limit:'101'}),
+      read('sales_action','id,inquiry_id,kind,description,due_date,status,mandatory,sales_inquiry!inner(status)',{status:'eq.open','sales_inquiry.status':'neq.closed',order:'due_date.asc.nullslast',limit:'101'}),
       read('sales_inquiry','id,title,status,next_action,received_at',{status:'neq.closed',order:'received_at.desc',limit:'101'})
     ]);
     return reply(200,{actions:actions.slice(0,100),inquiries:inquiries.slice(0,100),truncated:actions.length>100 || inquiries.length>100});
   } catch {
-    return reply(503,{error:'CRM 데이터를 불러오지 못했습니다. 다시 시도해주세요.'});
+    return reply(503,{error:request.method==='GET'?'CRM 데이터를 불러오지 못했습니다. 다시 시도해주세요.':'저장 결과를 확인하지 못했습니다. 입력을 유지했습니다. 재조회 후 같은 요청으로 다시 시도해주세요.'});
   }
 }

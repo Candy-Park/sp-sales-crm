@@ -17,7 +17,13 @@ createServer(async (req,res)=>{
     }
     const url=new URL(req.url,origin);
     if(url.pathname.startsWith('/api/')) {
-      const response=await handleApi(new Request(url,{method:req.method,headers:req.headers}),config);
+      let body;
+      if(!['GET','HEAD'].includes(req.method)){
+        const chunks=[];let size=0;
+        for await(const chunk of req){size+=chunk.length;if(size>800000){res.writeHead(413,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'입력 내용이 너무 큽니다.'}));return;}chunks.push(chunk);}
+        body=Buffer.concat(chunks);
+      }
+      const response=await handleApi(new Request(url,{method:req.method,headers:req.headers,body}),config);
       res.writeHead(response.status,Object.fromEntries(response.headers));res.end(await response.text());return;
     }
     if(req.method!=='GET') {res.writeHead(405);res.end();return;}
