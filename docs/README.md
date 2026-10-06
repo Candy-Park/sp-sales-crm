@@ -24,4 +24,5 @@
 - [기본 업무 등록·Action·종료](operations/2026-10-06-basic-work-write.md)
 - [제품 검색](operations/2026-10-07-product-search.md)
 - [HQ·고객 회신과 질문 검토](operations/2026-10-07-communication.md)
+- [Outlook 수집·로컬 재개 기반](operations/2026-10-07-outlook-collection.md)
 - [문서 구분 정리·이관](operations/2026-10-07-document-cleanup.md)
