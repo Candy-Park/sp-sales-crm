@@ -1,6 +1,7 @@
 import {id,writeInput} from './write-input.mjs';
 import {productQuery,searchProducts,linkInput} from './products.mjs';
 import {communicationInput} from './communication.mjs';
+import {outlookInput} from './outlook.mjs';
 const projectUrl='https://glscckjmlwvxilzneqdf.supabase.co';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function reply(status, body) {
@@ -8,6 +9,9 @@ function reply(status, body) {
 }
 export async function handleApi(request, env, fetcher=fetch) {
   const path=new URL(request.url).pathname;
+  const outlookLink=/^\/api\/outlook\/([0-9a-f-]+)\/link$/i.exec(path);
+  const outlookDetail=/^\/api\/outlook\/([0-9a-f-]+)$/i.exec(path);
+  const outlookLocal=path==='/api/outlook/local';
   const detail=/^\/api\/inquiries\/([0-9a-f-]+)$/i.exec(path);
   const addAction=/^\/api\/inquiries\/([0-9a-f-]+)\/actions$/i.exec(path);
   const close=/^\/api\/inquiries\/([0-9a-f-]+)\/close$/i.exec(path);
@@ -17,10 +21,10 @@ export async function handleApi(request, env, fetcher=fetch) {
   const messages=/^\/api\/inquiries\/([0-9a-f-]+)\/messages$/i.exec(path);
   const questions=/^\/api\/inquiries\/([0-9a-f-]+)\/questions$/i.exec(path);
   const review=/^\/api\/questions\/([0-9a-f-]+)$/i.exec(path);
-  const methods=productLinks?['GET','POST']:detail?['GET','PATCH']:addAction||close||messages||questions?['POST']:editAction||review||path==='/api/parties'?['PATCH']:path==='/api/inquiries'?['GET','POST']:['GET'];
+  const methods=outlookLink?['POST']:outlookLocal||path==='/api/outlook'?['GET','POST']:productLinks?['GET','POST']:detail?['GET','PATCH']:addAction||close||messages||questions?['POST']:editAction||review||path==='/api/parties'?['PATCH']:path==='/api/inquiries'?['GET','POST']:['GET'];
   if(!methods.includes(request.method)) return reply(405,{error:'지원하지 않는 요청입니다.'});
-  if(!['/api/me','/api/dashboard','/api/lookups','/api/inquiries','/api/parties','/api/products'].includes(path)&&!detail&&!addAction&&!close&&!editAction&&!productLinks&&!communication&&!messages&&!questions&&!review) return reply(404,{error:'요청한 기능이 없습니다.'});
-  for(const match of [detail,addAction,close,editAction,productLinks,communication,messages,questions,review])if(match){try{id(match[1]);}catch{return reply(400,{error:'항목 식별자를 확인해주세요.'});}}
+  if(!['/api/me','/api/dashboard','/api/lookups','/api/inquiries','/api/parties','/api/products','/api/outlook'].includes(path)&&!detail&&!addAction&&!close&&!editAction&&!productLinks&&!communication&&!messages&&!questions&&!review&&!outlookLink&&!outlookDetail&&!outlookLocal) return reply(404,{error:'요청한 기능이 없습니다.'});
+  for(const match of [detail,addAction,close,editAction,productLinks,communication,messages,questions,review,outlookLink,outlookDetail])if(match){try{id(match[1]);}catch{return reply(400,{error:'항목 식별자를 확인해주세요.'});}}
   if(env.SUPABASE_URL!==projectUrl || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(env.SUPABASE_PUBLISHABLE_KEY ?? ''))
     return reply(503,{error:'CRM 연결 설정을 확인해야 합니다.'});
   const authorization=request.headers.get('authorization') ?? '';
@@ -45,6 +49,10 @@ export async function handleApi(request, env, fetcher=fetch) {
     if(!Array.isArray(rows) || !rows.some(row=>row.user_id===user.id && row.enabled===true))
       return reply(403,{error:'이 계정은 CRM 사용이 허용되지 않았습니다.'});
     if(path==='/api/me') return reply(200,{user:{id:user.id,email:user.email},allowed:true});
+    if(outlookLocal){
+      if(!env.localOutlook)return reply(503,{error:'로컬 PC 수집 연결이 필요합니다.'});
+      return reply(200,await env.localOutlook(request.method,user.id,authorization));
+    }
     const read=async (table,select,extra={})=>{
       const response=await call('/rest/v1/'+table,{select,owner_id:'eq.'+user.id,...extra});
       if(!response.ok) throw new Error('read failed');
@@ -57,10 +65,11 @@ export async function handleApi(request, env, fetcher=fetch) {
         if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('JSON 입력이 필요합니다.');
         const raw=await request.text();if(raw.length>700000)throw new Error('입력 내용이 너무 큽니다.');body=JSON.parse(raw);
       }catch{return reply(400,{error:'입력 형식과 크기를 확인해주세요.'});}
-      const operation=messages?'message':questions?'question':review?'review':productLinks?'product-link':path==='/api/inquiries'?'register':addAction?'action':editAction?'action-edit':close?'close':detail?'inquiry-edit':'party';
-      let data;try{data=messages||questions||review?communicationInput(operation,body):productLinks?linkInput(body):writeInput(operation,body);}catch(error){return reply(400,{error:error.message});}
-      const rpc={register:'sales_register_inquiry',action:'sales_add_action','action-edit':'sales_edit_action',close:'sales_close_inquiry','inquiry-edit':'sales_edit_inquiry',party:'sales_edit_party','product-link':'sales_link_product',message:'sales_record_message',question:'sales_add_hq_question',review:'sales_review_hq_question'}[operation];
+      const operation=outlookLink?'outlook-link':path==='/api/outlook'?'outlook-ingest':messages?'message':questions?'question':review?'review':productLinks?'product-link':path==='/api/inquiries'?'register':addAction?'action':editAction?'action-edit':close?'close':detail?'inquiry-edit':'party';
+      let data;try{data=operation.startsWith('outlook-')?outlookInput(operation,body):messages||questions||review?communicationInput(operation,body):productLinks?linkInput(body):writeInput(operation,body);}catch(error){return reply(400,{error:error.message});}
+      const rpc={'outlook-ingest':'sales_ingest_outlook','outlook-link':'sales_link_outlook',register:'sales_register_inquiry',action:'sales_add_action','action-edit':'sales_edit_action',close:'sales_close_inquiry','inquiry-edit':'sales_edit_inquiry',party:'sales_edit_party','product-link':'sales_link_product',message:'sales_record_message',question:'sales_add_hq_question',review:'sales_review_hq_question'}[operation];
       const params={p_data:data};if(addAction)params.p_inquiry_id=addAction[1];if(editAction||close||detail)params.p_id=(editAction||close||detail)[1];
+      if(outlookLink)params.p_id=outlookLink[1];
       if(productLinks)params.p_inquiry_id=productLinks[1];
       if(messages||questions)params.p_inquiry_id=(messages||questions)[1];
       if(review)params.p_id=review[1];
@@ -73,6 +82,15 @@ export async function handleApi(request, env, fetcher=fetch) {
         return reply(503,{error:'저장 결과를 확인하지 못했습니다. 입력을 유지했습니다. 재조회 후 같은 요청으로 다시 시도해주세요.'});
       }
       return reply(200,{result:await response.json()});
+    }
+    if(path==='/api/outlook'||outlookDetail){
+      const query=new URL(request.url).searchParams;
+      const offset=query.get('offset')??'0';
+      if(!/^\d{1,7}$/.test(offset))return reply(400,{error:'페이지를 확인해주세요.'});
+      const filter={};if(query.has('inquiry_id')){try{filter.inquiry_id='eq.'+id(query.get('inquiry_id'));}catch{return reply(400,{error:'문의 식별자를 확인해주세요.'});}}
+      const mails=await read('sales_outlook_mail',outlookDetail?'*':'id,direction,subject,occurred_at,state,inquiry_id,body_length,created_at',{...filter,order:'occurred_at.desc,id.asc',limit:outlookDetail?'1':'51',...(outlookDetail?{id:'eq.'+outlookDetail[1]}:{offset})});
+      if(outlookDetail&&!mails.length)return reply(404,{error:'메일을 찾을 수 없습니다.'});
+      return reply(200,outlookDetail?{mail:mails[0]}:{mails:mails.slice(0,50),hasMore:mails.length>50});
     }
     if(communication){
       // PostgREST's server cap may return 1000 even when limit=1001 was requested.

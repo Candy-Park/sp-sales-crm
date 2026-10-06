@@ -32,4 +32,35 @@ D outputs에 outlook-capture-preview/local/replay.json, outlook-outbox-actual.js
 
 코드/문서는 403b247과 파일별 비교해 필요한 범위만 복원할 수 있다. 로컬 원문/큐는 삭제하지 않고 sources에 보존한다. 기존 Outlook 원본을 수정하지 않아 원본 메일 복원은 필요 없다. 서버/기존 CRM의 외부 반영은 없음.
 
-사용자 선택 대기: (1) 로그인한 CRM에서 직접 시작하여 검증할지, 별도 인증 보관이 필요한 PC 백그라운드 자동 수집까지 설정할지. (2) 큰 본문 4건을 로컬 원문 보존+CRM 보류로 두고 나머지부터 연결할지, 4건도 원문 전체를 새 Supabase에 저장하도록 구현할지. 선택 전 자격증명 보관이나 해당 메일의 CRM 반영 정책을 확정하지 않는다. 그 뒤 인증된 수집 API/소유자 RLS·대기 목록·신규/기존 문의 연결·실제 서버 재수집/복구를 구현한다. AI 서비스/비용, 두 세션 경합, 백업 복원 및 1주 실사용도 별도 남아 있다.
+2026-10-07 후속 결정: 로그인한 CRM에서 직접 시작하고 긴 본문 4건은 로컬 원문 보존+CRM 보류, 나머지 334건부터 연결하도록 사용자가 승인했다. 같은 선택을 다시 묻지 않는다. 아래 후속 구현은 f0d1777에서 시작하며 이전 검증은 당시 기록으로 보존한다.
+
+## 후속 수집 연결 구현 — 2026-10-07
+
+### 변경·보존·백업
+
+시작 커밋 f0d1777aab8e670a0913dd878afdcabb20b5ca79, 브랜치 codex/login-access, 원격 없음. 승인 결정을 먼저 검토 기록과 기획서에 반영했다. 변경 전 지정 문서 사본은 D:/AI/projects/sp-sales-crm/outputs/outlook-connect-records-before/에 보관했다.
+
+- src/outlook.mjs, src/api.mjs: 로그인 Auth 서버 확인과 sales_access 허용 계정 확인 후 수집·목록·원문·명시적 문의 연결 API를 제공한다. 클라이언트 소유자 지정은 거부하며 읽기는 검증한 owner_id로 제한한다. 목록은 본문 없이 50건씩 조회하고 상세에서만 원문을 읽는다.
+- db/outlook-collection.sql: 새 sales_outlook_mail 테이블, 소유자 RLS·허용 계정, 본문/연결 불변 규칙, 일반 원문 UTF-8 SHA-256 검증, 소유자·사서함·메일 키 중복 영수증과 원문 충돌 거부, invoker RPC를 추가했다. 긴 본문은 body=null 메타데이터·원문 해시만 저장하며 held 상태로 연결을 차단한다. 신규 문의 생성과 메일 연결은 같은 DB 트랜잭션으로 처리한다. 연결한 보낸 메일만으로 발송 기록·문의 상태를 자동 변경하지 않는다.
+- tools/outlook-local.mjs, tools/outlook_bridge.py, tools/outlook_collect_scope.ps1, tools/dev-server.mjs: CRM 직접 시작 작업과 인증된 상태 조회를 연결했다. 이전 승인 사서함의 해시와 고정 기간만 재수집하고 기존 outbox.sqlite에서 미전송을 재개한다. 토큰은 stdin/프로세스 메모리에서만 사용하고 argv·파일·로그에 남기지 않는다. 서비스 권한 키를 사용하지 않는다. 같은 실행 중 작업은 중복 시작하지 않으며 새 프로세스에서도 영수증을 확인한 메일부터 재개한다. 자동 예약·서비스 설치·백그라운드 자동 시작은 없다.
+- web/outlook.mjs, web/index.html, web/workspace.mjs: 수집 상태·기간, 대기/보류/연결 목록, 원문, 신규/기존 문의 선택, 문의 상세의 연결 메일 이력을 추가했다. 제목만으로 자동 병합하거나 모든 메일로 문의를 생성하지 않는다. 늦은 조회 응답·로그아웃으로 이전 원문이 복원되지 않게 하고 불확실한 신규 연결 재시도에서 동일 요청 ID와 원문을 유지한다.
+- tests/outlook.test.mjs, tests/outlook-ui.test.mjs, tests/test_outlook_bridge.py, db/test-outlook-collection.sql: 인증·소유자·보류·입력/첨부 메타데이터·중복/유실 응답·신규/기존 연결·종료 이력·UI 비동기 검사를 추가했다.
+
+기존 PC CRM/sp-crm, 제품·회신 SQL과 동결 산출물, Outlook 원본 메일·첨부·폴더·읽음 상태, 활성 개발 경로·무료 플랜·원격/배포 조건을 보존했다. .env는 변경하지 않았다. 소스 Git에 메일 원문·인증정보를 추가하지 않았다.
+
+### 실제 적용·검증과 발견한 수정
+
+1. Chrome 기존 CRM 탭 로그인 상태를 확인했고 새로고침하지 않았다. 로컬 서버를 새 코드로 재시작했으며 브라우저 세션을 추출하거나 복사하지 않았다. 새 CRM 탭은 메모리 세션이 없어 사용자 직접 로그인이 필요하다.
+2. Supabase 커넥터는 USER_NOT_LOGGED_IN으로 직접 조회가 막혀, 로그인된 Chrome의 glscckjmlwvxilzneqdf SQL Editor를 사용했다. 사전 조회에서 digest 스키마 extensions, 새 테이블 없음, 기존 허용 계정 1개를 확인한 뒤 수집 전용 SQL을 적용했다. 기존 제품/회신 SQL은 재실행하지 않았다. 수집 SQL 8,263자와 저장 파일 길이를 대조했고 Success를 확인했다.
+3. SQL 편집기의 setValue가 전체 문서를 교체하지 않아 다음 검사에 기존 DDL이 남고 relation already exists로 실패했다. 원인을 확인해 문서 전체 선택/삭제/붙여넣기로 검사 SQL만 입력했다. 격리된 8,032자 test-outlook-collection.sql 실행 결과 outlook_rollback_passed / enabled_accounts=1 / remaining_fixtures=0 / remaining_test_users=0이다. 일반·보류 원문, 영수증 재전송, 바뀐 원문/해시 거부, 익명·미허용·다른 소유자 차단, 신규/기존 문의 연결·발송 자동 처리 없음, 종료 후 이력 보존을 실제 DB에서 검사했다. 합성 트랜잭션 ROLLBACK이며 실제 메일 전송 검증과 구분한다.
+4. 로컬 338건 전체를 전송 입력 검증에 대조했다. 일반 334/보류 4, valid=338/invalid=0, 원문 SHA-256 모두 유지. 첫 임시 검사 도구의 UTF-8 스트림 청크별 문자열 변환으로 2건 길이 검사가 잘못 실패했으므로 Buffer.concat 후 한 번 디코딩하도록 검사 도구를 고쳤다. 실제 전송 코드는 바이트를 통째로 처리하며 원문은 변경하지 않았다.
+5. 새 사서함 해시 기반 PowerShell 도우미의 실제 재수집을 실행했다. 첫 실행은 dot-source한 기존 스크립트가 동일 이름의 Start/End/OutputPath 변수를 덮는 문제로 실패했다. 도우미 변수명을 분리하고 별칭으로 기존 호출 인자를 유지했으며 회귀 검사를 추가했다. 수정 후 실제 338건, 신규 0/중복 338, 이전 요청 ID·원문 해시 유지, 서버 전송 0이다. 새 capture 경로는 ignored notes/outlook-crm-scope-check-location.json에만 기록했다.
+6. 실제 로컬 API: 익명 목록/수집 시작 401, 잘못된 Origin 403, 무효 Bearer 401. 모두 메일 전송 없이 확인했다. 최종 Node 72개, Python 35개, 브라우저 빌드, PowerShell Parser, git diff --check 검증 결과는 아래 산출물에 보관한다.
+
+### 현재 한계·다음 작업·커밋·복원
+
+**실제 서버 메일 반영은 아직 0건, 영수증도 0건이다.** DB 적용·합성 검사는 실제 수집 완료가 아니다. 새 CRM 탭 사용자 직접 로그인 후 수집 버튼으로 일반 334건 원문/4건 보류 메타데이터를 실제 전송하고, 전체 서버 건수·보류 본문 null·로컬 영수증을 대조해야 한다. 실제 네트워크 응답 유실·프로세스 재시작/재수집·메일 이동·실제 메일의 사용자 선택 문의 연결은 남아 있다. 실메일 연결 대상은 자동 선택하지 않는다. 인증정보 영구 보관이나 세션 추출로 로그인 대기를 우회하지 않는다.
+
+AI 서비스·모델·비용, 두 실제 세션 경합, 백업 복원 및 1주 실사용도 미완료다. 자동 발송·AI 호출·배포·원격 push는 하지 않았다. 최신 로컬 커밋은 Git 이력으로 연결한다. 소스/문서는 f0d1777과 해당 파일만 비교해 복원하며, 새 DB 외부 적용분과 원문 큐는 임의로 삭제하거나 되돌리지 않는다. 제품/회신 테이블·원문을 건드리는 복구를 수행하지 않는다.
+
+산출물: D:/AI/projects/sp-sales-crm/outputs/2026-10-07-outlook-transport-audit.json, outlook-crm-scope-check.json, outlook-db-result.json, outlook-live-api-denials.json, outlook-connect-node-tests.txt, outlook-connect-python-tests.txt (뒤 파일도 모두 2026-10-07- 접두어). 개인 capture·본문·자격증명은 산출물이나 Git에 넣지 않았다.

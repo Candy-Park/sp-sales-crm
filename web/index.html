@@ -28,13 +28,24 @@
   <main id="workspace" hidden>
     <header class="app-header"><div class="wordmark dark">SOURCE PHOTONICS<span>Sales CRM</span></div><div class="account"><span id="user-email"></span><button class="btn btn-outline-secondary btn-sm" id="logout-button">로그아웃</button></div></header>
     <div class="work-layout">
-      <aside class="side-nav"><strong>업무</strong><button id="nav-dashboard" class="nav-button">Dashboard</button><button id="nav-register" class="nav-button">수동 문의 등록</button><button id="nav-history" class="nav-button">문의 조회 · 종료 이력</button></aside>
+      <aside class="side-nav"><strong>업무</strong><button id="nav-outlook" class="nav-button">Outlook 수집 · 검토</button><button id="nav-dashboard" class="nav-button">Dashboard</button><button id="nav-register" class="nav-button">수동 문의 등록</button><button id="nav-history" class="nav-button">문의 조회 · 종료 이력</button></aside>
       <section class="dashboard"><div class="mobile-nav"><button id="mobile-dashboard" class="btn btn-outline-secondary">Dashboard</button><button id="mobile-register" class="btn btn-outline-secondary">문의 등록</button><button id="mobile-history" class="btn btn-outline-secondary">문의 조회</button></div><div id="dashboard-view"><div class="dashboard-title"><div><p class="section-label" id="today-label"></p><h1>오늘의 업무</h1></div><button class="btn btn-outline-secondary" id="reload-button">새로고침</button></div>
         <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
         <div class="summary-strip"><div><span>오늘 기한</span><strong id="today-count">—</strong></div><div><span>기한 지남</span><strong id="overdue-count">—</strong></div><div><span>답변 대기 문의</span><strong id="waiting-count">—</strong></div></div>
         <section class="work-section"><h2>미완료 Action</h2><p class="section-hint">Action별 업무입니다. 기한이 없는 업무도 함께 표시합니다.</p><ul id="action-list" class="work-list"></ul></section>
         <section class="work-section"><h2>진행 중인 문의</h2><ul id="inquiry-list" class="work-list"></ul></section>
         <button id="dashboard-register" class="btn btn-primary">수동 문의 등록</button></div>
+        <section id="outlook-view" hidden><h1>Outlook 수집 · 검토</h1>
+          <p class="section-hint">승인된 받은/보낸 편지함 기간을 직접 재수집하고 서버 영수증을 확인합니다. 긴 본문은 로컬 보존·보류하며 메일별 문의 연결은 직접 선택합니다.</p>
+          <p id="outlook-status" class="section-hint"></p><button id="outlook-start" class="btn btn-primary">승인 기간 직접 수집 · 미전송 재개</button> <button id="outlook-reload" class="btn btn-outline-secondary">수집 상태 · 목록 재조회</button>
+          <p id="outlook-message" class="message" role="status"></p><ul id="outlook-list" class="work-list"></ul><button id="outlook-prev" class="btn btn-outline-secondary">이전 메일</button> <button id="outlook-next" class="btn btn-outline-secondary">다음 메일</button>
+          <section id="outlook-review" hidden><h2 id="outlook-subject"></h2><p id="outlook-meta" class="section-hint"></p><pre id="outlook-body" class="original-text"></pre><button id="outlook-linked-open" class="btn btn-primary" hidden>연결된 문의 열기</button>
+            <form id="outlook-link-form" hidden><label for="outlook-link-mode">연결 방식</label><select id="outlook-link-mode" class="form-select"><option value="existing">기존 문의에 연결</option><option value="new">신규 문의 생성 후 연결</option></select>
+              <label for="outlook-inquiry">기존 문의 (종료 제외)</label><select id="outlook-inquiry" class="form-select"></select><button id="outlook-inquiry-prev" type="button">이전 문의</button> <button id="outlook-inquiry-next" type="button">다음 문의</button>
+              <label for="outlook-customer">신규 문의의 고객사</label><select id="outlook-customer" class="form-select"></select><label for="outlook-customer-name">새 고객사 이름</label><input id="outlook-customer-name" class="form-control" maxlength="200"><label for="outlook-new-title">신규 문의 제목</label><input id="outlook-new-title" class="form-control" maxlength="300">
+              <p class="section-hint">검토한 원문을 보존해 연결합니다. 제목만으로 병합하거나 실제 발송·HQ 답변 충분성을 자동 확정하지 않습니다. 빈 본문 메일은 기존 문의에 연결하세요.</p><button id="outlook-link-save" class="btn btn-primary">검토한 메일 문의 연결</button></form>
+          </section>
+        </section>
         <section id="register-view" hidden><h1>수동 문의 등록</h1><p class="section-hint">기존 고객사를 선택하거나 신규 이름을 입력하세요. 원문은 저장 후 보존됩니다.</p>
           <button id="lookup-reload" class="btn btn-outline-secondary btn-sm">고객 목록 재조회</button>
           <form id="inquiry-form">
@@ -50,7 +61,7 @@
         </section>
         <section id="history-view" hidden><h1>문의 조회 · 종료 이력</h1><div class="form-grid"><div><label for="filter-customer">고객사 필터</label><select id="filter-customer" class="form-select"></select></div><div><label for="filter-project">프로젝트 필터</label><select id="filter-project" class="form-select"></select></div></div><button id="history-search" class="btn btn-outline-secondary">조회</button><p id="history-message" class="message" role="status"></p><ul id="history-list" class="work-list"></ul><button id="history-prev" class="btn btn-outline-secondary" disabled>이전</button> <button id="history-next" class="btn btn-outline-secondary" disabled>다음</button></section>
         <section id="detail-view" hidden><div class="dashboard-title"><h1 id="detail-heading">문의 상세</h1><button id="detail-reload" class="btn btn-outline-secondary">저장된 내용 재조회</button></div><p class="section-hint">저장된 내용 재조회는 아래 편집 입력을 갱신합니다. 충돌 시 현재 입력을 먼저 보관하세요.</p><p id="detail-message" class="message" role="status" aria-live="polite"></p>
-          <div id="detail-meta" class="section-hint"></div><h2>보존된 원문</h2><pre id="detail-original" class="original-text"></pre>
+          <div id="detail-meta" class="section-hint"></div><h2>보존된 원문</h2><pre id="detail-original" class="original-text"></pre><h2>연결된 Outlook 메일</h2><div id="detail-mails"></div>
           <form id="detail-form"><label for="detail-title">문의 제목 수정</label><input id="detail-title" class="form-control" maxlength="300" required><label for="detail-next">Next Action 수정</label><textarea id="detail-next" class="form-control" rows="2" maxlength="2000"></textarea><button class="btn btn-primary">문의 변경 저장</button></form>
           <details><summary>고객사 · 담당자 · 프로젝트 수정</summary><div id="party-editors"></div></details>
           <section class="work-section"><h2>Product / P/N Finder</h2><p class="section-hint">초기 검증 범위: 100G LR4·SR4 두 제품. 선택은 공급 확정이나 HQ 확인을 대신하지 않습니다.</p>

@@ -1,4 +1,5 @@
 import { actionBucket } from "../src/basic-work.mjs";
+import {initOutlook} from './outlook.mjs';
 import {initProducts} from './products.mjs';
 import {initCommunication} from './communication.mjs';
 const el = (id) => document.getElementById(id);
@@ -10,6 +11,7 @@ function seoulInput(iso) {
 }
 const toIso = (value) => value ? (value.length === 16 ? value + ":00" : value) + "+09:00" : null;
 function initWorkspace(api, dashboard, message) {
+  const outlook=initOutlook({api,message,show,open});
   const products=initProducts({api,message});
   let lookups = { customers: [], contacts: [], projects: [] }, selected = null, registerId = crypto.randomUUID(), actionId = crypto.randomUUID(), offset = 0, viewGeneration = 0, sessionGeneration = 0, currentDetailId = null;
   let requiredActions=0;
@@ -32,7 +34,7 @@ function initWorkspace(api, dashboard, message) {
   function show(view) {
     viewGeneration++;
     if(view!=='detail')communication.deactivate();
-    for (const name of ["dashboard", "register", "history", "detail"]) el(name + "-view").hidden = name !== view;
+    for (const name of ["dashboard", "register", "history", "detail", "outlook"]) el(name + "-view").hidden = name !== view;
   }
   function lookupOptions() {
     options("customer-select", lookups.customers, "신규 고객사 입력");
@@ -238,6 +240,7 @@ function initWorkspace(api, dashboard, message) {
     show("detail");
     const active = viewGeneration;
     selected = null;
+    outlook.reset();
     products.reset();
     communication.reset();
     el("detail-original").textContent = "";
@@ -254,6 +257,7 @@ function initWorkspace(api, dashboard, message) {
       el("detail-heading").textContent = i.title;
       el("detail-original").textContent = i.original_text;
       renderDetailMeta(i);
+      outlook.bind(i.id);
       products.bind(i);
       message("close-message", "");
       el("detail-title").value = i.title;
@@ -371,6 +375,7 @@ function initWorkspace(api, dashboard, message) {
     });
   });
   return { open, reset() {
+    outlook.reset();
     products.reset();
     communication.reset();
     sessionGeneration++;
