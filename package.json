@@ -1,0 +1,13 @@
+{
+  "name": "sp-sales-crm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "node tools/build.mjs",
+    "dev": "node --env-file-if-exists=.env tools/dev-server.mjs"
+  },
+  "dependencies": {"@supabase/supabase-js": "2.117.2", "bootstrap": "5.3.8"},
+  "devDependencies": {"esbuild": "0.28.2"}
+}
