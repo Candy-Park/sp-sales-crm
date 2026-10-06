@@ -41,3 +41,13 @@
 ## 보존 및 복원
 
 기존 sp-crm, PC CRM, H 원본 변경 없음. 새 UI/API는 파일 단위 Git 복원 가능. 실행 중 로컬 서버를 종료하면 화면 접근이 중단된다. 외부 DB 권한은 사용자 승인 없이 임의로 되돌리지 않는다. DB 검증 사진과 로그인 준비 화면은 지정 D outputs에 보관했다.
+
+## 로컬 커밋
+
+기초 코드와 로그인 구현을 포함한 선택 파일 35개를 b632c30 (`feat: establish CRM foundation and read-only authenticated workspace`)으로 커밋했다. 커밋 전 credential-pattern 검사와 diff --check 통과, .env/notes/dist/node_modules 추적 없음 확인. 원격은 없고 push·공개 업로드·배포하지 않았다.
+
+## 실제 로그인 확인
+
+사용자 직접 로그인 완료 후 Chrome의 업무 화면에서 지정 계정과 '현재 계정의 업무를 확인했습니다.' 표시를 확인했다. 새 DB에는 실제 업무를 아직 넣지 않아 미완료 Action과 진행 문의가 비어 있다. 새로고침 버튼으로 인증된 실제 API 재조회 성공을 확인했다. 이후 로그아웃 버튼으로 업무 데이터와 사용자 표시가 닫히고 비밀번호가 비어 있는 로그인 화면으로 돌아오며 '로그아웃했습니다.' 표시를 확인했다.
+
+증거: outputs/2026-10-06-crm-login-verified.jpg 및 outputs/2026-10-06-crm-logout-verified.jpg. 현재 화면은 확인용 로그아웃을 마친 로그인 화면이다. 이번 로그인/조회/로그아웃 흐름은 실제 검증 완료. 토큰 만료 UI와 전체 업무 E2E·쓰기 기능은 별도 미완료다. 다음 작업은 2단계의 고객·수동 문의 등록과 Action/Closed의 DB 업무 규칙 연결이다.
