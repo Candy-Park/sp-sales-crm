@@ -14,7 +14,7 @@
 
 제품 검색·문의 후보 연결도 구현했다. 사용자 선택 범위는 100G LR4/SR4 두 제품이다. **2026-10-07 사용자 확인 후 제품 DB 적용·ROLLBACK 검사·사후 권한 검사·Advisor 조회를 마쳤다.** 제품 화면의 실제 로그인 E2E는 남아 있으며 격리 화면/단위 테스트와 구분한다. 사양 조건 일치, 불일치, 근거 미확인을 구분하고 후보 선택 근거와 기록 당시 자료를 보존한다. 판매·최신본·Packing·가격·납기를 확정하지 않는다. 상세 절차는 docs/operations/2026-10-07-product-search.md를 따른다.
 
-HQ·고객의 수동 초안·원문·실제 발송 기록, 질문별 답변 검토와 이력, 대기 대상, 미답변 질문의 종료 차단도 구현했다. **회신 DB 반영은 확인 대기다. 최신 소스를 실행하려면 회신 테이블과 문의 대기 컬럼을 먼저 적용해야 한다.** 현재 실행 중인 이전 서버는 유지한다. 격리 UI 검증을 실제 DB 통과로 보고하지 않는다. AI 호출·자동 메일 발송은 없으며 상세 근거는 [회신 작업 기록](docs/operations/2026-10-07-communication.md)에 남긴다.
+HQ·고객의 수동 초안·원문·실제 발송 기록, 질문별 답변 검토와 이력, 대기 대상, 미답변 질문의 종료 차단도 구현했다. **2026-10-07 사용자 확인 후 회신 DB 적용·실제 합성 ROLLBACK·사후 권한 검사를 통과했다.** 최신 4317 서버로 전환했다. 실제 로그인 화면 E2E는 남아 있으며 격리 UI 검증과 구분한다. AI 호출·자동 메일 발송은 없으며 상세 근거는 [회신 작업 기록](docs/operations/2026-10-07-communication.md)에 남긴다.
 
 Node.js와 npm이 필요하다. 패키지 버전은 package-lock.json으로 고정한다.
 
@@ -46,7 +46,7 @@ db/verify-basic-schema.sql은 초기의 클라이언트 권한 0개를 기대하
 
 기본 업무 최종 SQL은 이미 적용됐다. 컬럼·제약·함수 생성이 포함되므로 반복 적용하지 않는다. 보안 점검 중 발견한 관리용 rls_auto_enable 함수의 클라이언트 EXECUTE는 db/harden-rls-event-access.sql로 제한했다. ensure_rls 이벤트 트리거와 자동 RLS 동작은 유지·검증했다. Security Advisor는 오류 0건, 유출 비밀번호 보호 비활성 경고 1건이다. 해당 보호는 유료 플랜 기능이며 무료 사용 조건을 유지했다.
 
-회신 DB: `node tools/prepare-communication.mjs`는 D outputs에 검토용 최종/ROLLBACK SQL과 해시를 만든다. db/communication.sql은 업무 규칙만, db/enable-communication.sql은 SELECT/INSERT 및 RPC EXECUTE 권한만 정의한다. 실행 시점 확인과 합성 ROLLBACK 통과 전 실제 적용하지 않는다. 적용 후 db/verify-communication.sql로 검사한다. 준비/적용 SQL은 반복 실행용 migration 도구가 아니며 이미 반영한 제품 SQL을 재생성/재적용하지 않는다.
+회신 DB: `node tools/prepare-communication.mjs`는 D outputs에 검토용 최종/ROLLBACK SQL과 해시를 만든다. db/communication.sql은 업무 규칙만, db/enable-communication.sql은 SELECT/INSERT 및 RPC EXECUTE 권한만 정의한다. 실행 시점 확인과 합성 ROLLBACK 통과 전 실제 적용하지 않는다. 적용 후 db/verify-communication.sql로 검사한다. 회신 DB와 db/communication-indexes.sql의 새 외래키 인덱스는 이미 적용/사후 검증했으므로 반복 실행하지 않는다. 준비/적용 SQL은 반복 실행용 migration 도구가 아니며 이미 반영한 제품 SQL을 재생성/재적용하지 않는다.
 
 ## 검증
 

@@ -47,3 +47,6 @@ D:/AI/projects/sp-sales-crm/outputs/에 2026-10-07-products-preview.json, produc
 - Security Advisor 재조회: 오류 0, 기존 유출 비밀번호 보호 경고 1. 무료 조건 유지. Performance Advisor: 오류 0, 경고 0, 참고 12 (외래키 인덱스 8, 미사용 인덱스 4). 실사용 전 측정과 인덱스 보완 대상으로 기록하며 미사용 인덱스를 자동 삭제하지 않는다.
 - 증거: outputs의 products-rollback-passed.png, products-applied.png, products-post-verified.png, products-security.png, products-performance.png. 기존 CRM·Auth·허용 계정·무료 플랜·배포 조건은 변경하지 않았다.
 - 남은 검증: 최신 서버/화면에서 사용자 직접 로그인 후 제품 검색·후보 저장·재조회·로그아웃. 제품 후보/종료의 실제 두 세션 경합. 전체 MVP 완료가 아니다.
+
+
+회신 DB 승인 반영 후 2026-10-07 최신 4317 서버로 전환했다. 제품 실제 E2E는 새 화면에서 사용자 직접 로그인 대기이며 이전 API 유지 사유는 해소됐다. 두 제품 DB를 다시 적용하지 않는다.

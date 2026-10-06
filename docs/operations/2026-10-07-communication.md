@@ -1,6 +1,6 @@
 # 수동 HQ·고객 회신과 질문 검토 작업 기록
 
-승인된 기획서의 커뮤니케이션 단계 구현. AI 서비스·비용은 미결정이므로 수동 초안·번역·원문·실제 발송 기록 경로를 구현했다. 원격 없음, 로컬 브랜치 codex/login-access, 시작 커밋 9c855f1. 새 Supabase의 회신 DB 권한 반영은 실행 시점 확인 대기이며 아직 적용하지 않았다.
+승인된 기획서의 커뮤니케이션 단계 구현. AI 서비스·비용은 미결정이므로 수동 초안·번역·원문·실제 발송 기록 경로를 구현했다. 원격 없음, 로컬 브랜치 codex/login-access, 시작 커밋 9c855f1. 2026-10-07 사용자 답변 `회신 기능 DB 적용`을 받은 뒤 실제 DB를 반영하고 사후 권한 검사를 통과했다. 실제 화면 E2E는 사용자 직접 로그인 대기다.
 
 ## 변경과 보존
 
@@ -10,9 +10,9 @@
 - db/test-communication-body.sql·verify-communication.sql·tools/prepare-communication.mjs: 합성 검사 전체 ROLLBACK, 적용 전 조건 및 사후 권한/합성 자료 부재 검사용 SQL. SQL은 준비만 했으며 실제 PostgreSQL 통과로 보고하지 않는다.
 - tests/communication.test.mjs·communication-ui.test.mjs 및 tools/ui-fixture-server.mjs: API/도메인·비동기 UI·격리 화면 검증. 기존 PC CRM·sp-crm·계정·원본·무료 조건·전역 지침·활성 개발 경로 보존.
 
-최신 소스는 회신 테이블과 문의 waiting_target/waiting_since 컬럼을 요구한다. 회신 DB 반영 전 최신 서버로 전환하지 않는다. 기존 4317 서버는 이전 API를 유지한다. 실제 서버 전환 후 로그인은 사용자 직접 입력한다.
+최신 소스가 요구하는 회신 테이블과 문의 waiting_target/waiting_since 컬럼을 적용했다. 기존 4317 서버만 종료하고 최신 API로 재시작했다. 최신 화면을 로드했으며 실제 로그인은 사용자 직접 입력한다.
 
-## 검증 결과와 한계
+## DB 반영 전 검증 결과와 당시 한계
 
 - 입력/권한·API·UI 테스트를 실패 재현 후 구현했다. 최종 Node 58/58, Python 수집 회귀 9/9, npm run build 통과. 실제 AI·Outlook 수집·클라우드 배포 검증을 포함하지 않는다.
 - 기존 문의/로그아웃 후 늦은 응답이 원문 화면을 복원하지 않는지, 불확실한 저장 응답에서 입력·요청 UUID가 유지되는지, 복사에 API 쓰기가 없는지, 부분 답변이 자동 완료되지 않는지 검사했다.
@@ -26,6 +26,27 @@
 
 D:/AI/projects/sp-sales-crm/outputs/의 communication-apply.sql·rollback.sql·manifest.json·tests.txt·synthetic-report.json 및 save-failure/partial/closed/approval 화면에 근거를 보관한다. 정확한 SQL 해시는 manifest에 고정한다. 기존 커밋의 소스 백업은 before-communication-9c855f1.zip이다. .env·개인 notes·토큰·비밀번호·원본 PDF는 백업/커밋에 포함하지 않는다.
 
-코드는 9c855f1과 파일별 비교 후 필요한 범위만 복원할 수 있다. 외부 제품 DB는 이미 승인 반영됐으므로 임의로 되돌리지 않는다. 회신 DB에는 아직 복원할 반영분이 없다. 커밋/상세 해시는 D 완료 기록에서 연결하며 push·배포하지 않는다.
+코드는 9c855f1과 파일별 비교 후 필요한 범위만 복원할 수 있다. 외부 제품 DB는 이미 승인 반영됐으므로 임의로 되돌리지 않는다. 회신 DB도 승인 반영됐으므로 외부 변경은 영향과 승인 범위를 확인한 뒤 복원한다. 커밋/상세 해시는 D 완료 기록에서 연결하며 push·배포하지 않는다.
 
-다음: 회신 DB 실행 시점 확인 → 준비된 ROLLBACK 검사 → 통과할 때만 최종 적용 → 사후 검사·Advisor → 최신 4317 서버 전환 → 사용자 직접 로그인 후 제품/회신 실제 E2E. AI 서비스·비용 선택과 실제 Outlook 수집·백업 복원·1주 실사용은 후속이다.
+당시 다음 순서: 회신 DB 실행 시점 확인 → 준비된 ROLLBACK 검사 → 통과할 때만 최종 적용 → 사후 검사·Advisor → 최신 4317 서버 전환 → 사용자 직접 로그인 후 제품/회신 실제 E2E. AI 서비스·비용 선택과 실제 Outlook 수집·백업 복원·1주 실사용은 후속이다.
+
+
+## 사용자 확인 후 실제 DB 반영 — 2026-10-07
+
+- 사용자 답변 `회신 기능 DB 적용`을 확인했다. 준비 SQL의 SHA-256과 편집기 전체 SQL(줄바꿈 정규화)을 대조하고 실행했다. 준비된 SQL은 재생성하지 않았다.
+- 실제 합성 검사 결과 `communication_rollback_passed`: 본인/다른 소유자 격리·비활성 계정/anon 차단, 원문·질문 snapshot, 재시도·충돌·Closed 이후 동일 재시도, 실제 발송 확인·미래 시각·출처/질문 위조 차단, Action 완료·대기, 번역 별도 보존, 부분 답변 종료 차단, 검토 이력·과거 수신의 상태 후퇴 방지, UPDATE/DELETE 금지. 테스트 전체 ROLLBACK.
+- 실제 반영 결과 `communication_enabled`. 이어서 db/verify-communication.sql 결과 `communication_post_apply_passed`: 3개 테이블 RLS·SELECT/INSERT만, invoker RPC, anon/수정/삭제 및 trigger helper EXECUTE 차단, enabled 계정 1개, 합성 Auth/문의 부재와 대기 필드 확인.
+- Security Advisor 오류 0, 기존 유출 비밀번호 보호 경고 1. 무료 조건 유지. Performance Advisor 오류/경고 0, 참고 21개. 새 3개 테이블의 부모/질문 외래키 인덱스에 대해 실제 constraint 상세를 확인해 추가 SQL을 준비했다. 기존 인덱스를 자동 삭제하지 않는다.
+- 쿼리: ROLLBACK 8680bb0a-2a1a-4203-a01c-a22884daff31, 적용 4ca6b7ee-e6c4-43c4-b819-ea8b4d7ec687, 사후 e6ad61f0-1b9b-452c-9b0a-ccf98d4588de. 증거와 정확한 해시는 D outputs의 communication-rollback-passed/applied/post-verified/security 화면·manifest에 보관한다.
+- 최신 4317 서버와 로그인 화면 준비. 이메일만 입력했고 비밀번호/토큰을 읽거나 기록하지 않았다. 실제 제품·회신 E2E와 동시 세션 경합은 미완료다. 기획서 요구사항은 변경하지 않았다.
+
+
+## 인덱스 보완과 서버 전환 완료
+
+- db/communication-indexes.sql을 별도 증분 변경으로 적용했다. sales_message·sales_hq_question의 (inquiry_id,owner_id), sales_hq_review의 (question_id,inquiry_id,owner_id,revision DESC) 인덱스 정의를 실제 검사했다. 결과 `communication_fk_indexes_verified`, 쿼리 d2650705-166c-4a5d-b21e-cd64804c8ef7. 동결된 기존 적용 SQL을 바꾸거나 반복 실행하지 않았다.
+- Performance Advisor Rerun linter 후 Unindexed foreign keys만 필터링: 새 회신 테이블 3개 항목 없음. 남은 외래키 참고 8개는 기존 기본/제품 테이블이며, 미사용 인덱스 참고 13개와 합쳐 참고 21개다. 오류·경고 0. 삭제 후보를 확정하지 않았고 인덱스를 삭제하지 않았다. 사후 화면은 communication-performance-verified.png에 보관했다.
+- 실제 4317 HTTP 확인: /api/dashboard·products·문의 communication은 로그인 없으면 401, 다른 Origin은 403. 최신 communication-section HTML, 새 프로젝트/공개 키 구성 확인; 키 값은 출력하지 않았다. communication-live-server.json에 최소 결과만 저장했다.
+- 전체 업무 E2E는 로그인 대기다. Chrome CRM 화면에 이메일만 준비했고, 사용자에게 비밀번호 직접 입력을 안내했다. 새 로그인 세션·제품 검색/후보 저장·HQ/고객 회신·종료의 실제 화면 검증을 완료로 보고하지 않는다.
+- 변경 전 문서는 communication-db-records-before/에 복사했다. 적용 SQL·ROLLBACK SQL·인덱스 SQL과 해시·사후 검사 화면은 D outputs에 보관한다. 기존 CRM·sp-crm·무료 조건·Auth·허용 계정·외부 발송·배포는 보존했다.
+
+남은 다음 작업은 사용자 직접 로그인 후 실제 제품/회신 E2E, 동시 세션 경합, AI 서비스/비용 선택과 실제 Outlook 수집·복원·1주 실사용이다. DB 재적용은 다음 작업에 포함하지 않는다. Git은 로컬 커밋만 하고 원격 업로드하지 않는다.
