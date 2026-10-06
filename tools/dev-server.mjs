@@ -5,7 +5,7 @@ import {publicConfig} from '../src/public-config.mjs';
 import {localOutlook} from './outlook-local.mjs';
 
 const origin='http://127.0.0.1:4317';
-const files=new Map([['/',['index.html','text/html; charset=utf-8']],['/app.js',['app.js','text/javascript; charset=utf-8']],['/style.css',['style.css','text/css; charset=utf-8']],['/bootstrap.css',['bootstrap.css','text/css; charset=utf-8']]]);
+const files=new Map([['/',['index.html','text/html; charset=utf-8']],['/app.js',['app.js','text/javascript; charset=utf-8']],['/style.css',['style.css','text/css; charset=utf-8']],['/bootstrap.css',['bootstrap.css','text/css; charset=utf-8']],['/assets/sp-logo-transparent.png',['assets/sp-logo-transparent.png','image/png']]]);
 const config={SUPABASE_URL:process.env.SUPABASE_URL ?? 'https://glscckjmlwvxilzneqdf.supabase.co',SUPABASE_PUBLISHABLE_KEY:process.env.SUPABASE_PUBLISHABLE_KEY ?? ''};
 config.localOutlook=localOutlook(config);
 createServer(async (req,res)=>{

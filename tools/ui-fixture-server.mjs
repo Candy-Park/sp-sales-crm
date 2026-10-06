@@ -144,7 +144,7 @@ createServer(async (req, res) => {
       res.end(JSON.stringify({ url: env.SUPABASE_URL, publishableKey: env.SUPABASE_PUBLISHABLE_KEY }));
       return;
     }
-    const files = { "/": ["web/index.html", "text/html"], "/app.js": [output + "app.js", "text/javascript"], "/style.css": ["web/style.css", "text/css"], "/bootstrap.css": ["node_modules/bootstrap/dist/css/bootstrap.min.css", "text/css"] };
+    const files = { "/": ["web/index.html", "text/html"], "/app.js": [output + "app.js", "text/javascript"], "/style.css": ["web/style.css", "text/css"], "/bootstrap.css": ["node_modules/bootstrap/dist/css/bootstrap.min.css", "text/css"], "/assets/sp-logo-transparent.png": ["web/assets/sp-logo-transparent.png", "image/png"] };
     const file = files[url.pathname];
     if (!file) {
       res.writeHead(404);

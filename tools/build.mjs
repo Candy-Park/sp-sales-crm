@@ -4,5 +4,7 @@ await mkdir('dist',{recursive:true});
 await build({entryPoints:['web/app.mjs'],bundle:true,format:'esm',outdir:'dist',minify:true});
 await copyFile('web/index.html','dist/index.html');
 await copyFile('web/style.css','dist/style.css');
+await mkdir('dist/assets',{recursive:true});
+await copyFile('web/assets/sp-logo-transparent.png','dist/assets/sp-logo-transparent.png');
 await copyFile('node_modules/bootstrap/dist/css/bootstrap.min.css','dist/bootstrap.css');
 console.log('CRM browser build complete');
