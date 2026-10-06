@@ -1,6 +1,6 @@
 # Source Photonics sales CRM
 
-1인 영업 CRM의 MVP. 개발 범위와 검수 기준은 [개발계획서](docs/development-plan.md)를 따른다.
+1인 영업 CRM의 MVP. 개발 범위와 검수 기준은 [기획서](docs/development-plan.md)를 따른다. 조사·결정과 작업 이력은 [문서 안내](docs/README.md)의 구분에 따라 별도로 관리한다.
 
 ## 현재 가능한 기능
 
