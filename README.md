@@ -4,11 +4,11 @@
 
 ## 현재 가능한 기능
 
-로컬 로그인, Supabase Auth 인증, 허용 계정 확인, 본인 Dashboard 조회에 더해 수동 문의 등록·상세·종료 이력, 고객/담당자/프로젝트의 문의 내 생성과 이름/메모 수정, Action 등록·편집·완료·사유 있는 취소, 문의 Closed 처리를 구현했다. **현재 새 DB의 쓰기 권한 적용은 최종 확인 대기**다. 실제 등록 기능 사용은 아래 SQL 적용 후 검증한다.
+로컬 로그인, Supabase Auth 인증, 허용 계정 확인, 본인 Dashboard 조회에 더해 수동 문의 등록·상세·종료 이력, 고객/담당자/프로젝트의 문의 내 생성과 이름/메모 수정, Action 등록·편집·완료·사유 있는 취소, 문의 Closed 처리를 구현했다. **2026-10-06 사용자 확인 후 새 DB의 업무 규칙과 쓰기 권한을 적용했고 사후 권한 검사를 통과했다.** 지정 계정의 실제 화면 쓰기 E2E는 직접 로그인 후 검증한다.
 
 원문은 수정으로 덮어쓰지 않고 HTML 삽입 없이 출력한다. 저장 실패·충돌 시 입력을 유지하고 재조회할 수 있다. 같은 등록 요청은 재시도해도 하나의 Inquiry/Action으로 처리한다. 실제 저장 여부가 불확실한 경우 이력 확인 후 새 입력을 시작한다. Dashboard는 진행 문의의 미완료 Action만 표시하며 집계는 최대 100개씩 표시한 목록 기준이다. 문의 조회에는 종료된 문의도 포함하고 고객·프로젝트 필터와 100개 단위 페이지를 지원한다.
 
-실제 쓰기 권한 적용·지정 계정 등록 E2E, 다중 DB 세션의 동시 종료/Action 경합, 토큰 만료 UI, Outlook 실제 수집, 제품검색·AI·배포는 아직 검증/개발이 남는다. 전체 MVP 완료가 아니다. 실제 발송에 따른 Waiting 상태 전환은 커뮤니케이션 단계에서 연결한다.
+지정 계정 등록 E2E, 다중 DB 세션의 동시 종료/Action 경합, 토큰 만료 UI, Outlook 실제 수집, 제품검색·AI·배포는 아직 검증/개발이 남는다. 전체 MVP 완료가 아니다. 실제 발송에 따른 Waiting 상태 전환은 커뮤니케이션 단계에서 연결한다.
 
 ## 로컬 실행
 
@@ -39,6 +39,8 @@ db/verify-basic-schema.sql은 초기의 클라이언트 권한 0개를 기대하
 기본 업무 쓰기: db/basic-work-write.sql은 원문·revision·종료 규칙과 SECURITY INVOKER RPC를 정의한다. db/enable-basic-write.sql은 기존 허용 계정의 소유자 RLS를 유지하면서 authenticated INSERT/UPDATE와 업무 RPC EXECUTE만 추가한다. DELETE, sales_access 변경, anon 접근은 허용하지 않는다. 적용 대상은 새 프로젝트 `glscckjmlwvxilzneqdf`뿐이다.
 
 `node tools/prepare-write-validation.mjs`는 지정 D outputs에 최종 적용 SQL과 ROLLBACK 검증 SQL을 생성한다. ROLLBACK SQL은 규칙·임시 권한·합성 데이터 검증을 같은 트랜잭션에서 수행하고 모두 되돌린다. 최종 적용 SQL은 **권한 적용 확인 후** 실행한다. 적용 후에는 db/verify-basic-write.sql을 사용한다. 과거 db/verify-login-read.sql은 읽기 전용 단계의 스냅샷 검사이므로 쓰기 적용 후 실행하면 의도대로 실패한다.
+
+기본 업무 최종 SQL은 이미 적용됐다. 컬럼·제약·함수 생성이 포함되므로 반복 적용하지 않는다. 보안 점검 중 발견한 관리용 rls_auto_enable 함수의 클라이언트 EXECUTE는 db/harden-rls-event-access.sql로 제한했다. ensure_rls 이벤트 트리거와 자동 RLS 동작은 유지·검증했다. Security Advisor는 오류 0건, 유출 비밀번호 보호 비활성 경고 1건이다. 해당 보호는 유료 플랜 기능이며 무료 사용 조건을 유지했다.
 
 ## 검증
 
