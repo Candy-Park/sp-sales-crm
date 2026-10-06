@@ -30,7 +30,10 @@ async function dashboard(){
     const {today,overdue,waiting}=dashboardSummary(data,now);
     const link=(li,id)=>{const strong=li.querySelector('strong'),button=document.createElement('button');button.textContent=strong.textContent;button.addEventListener('click',()=>work.open(id));strong.replaceWith(button);};
     for(const action of data.actions){link(item('action-list',action.description,'미완료 · '+(action.mandatory?'필수 업무':'선택 업무'),action.due_date ?? '기한 없음'),action.inquiry_id);}
-    for(const inquiry of data.inquiries)link(item('inquiry-list',inquiry.title,(statuses[inquiry.status]??inquiry.status)+(inquiry.next_action?' · '+inquiry.next_action:'')),inquiry.id);
+    for(const inquiry of data.inquiries){
+      const waiting=inquiry.waiting_target?' · 대기 '+inquiry.waiting_target+' / '+new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',dateStyle:'short',timeStyle:'short'}).format(new Date(inquiry.waiting_since))+' 서울':'';
+      link(item('inquiry-list',inquiry.title,(statuses[inquiry.status]??inquiry.status)+waiting+(inquiry.next_action?' · '+inquiry.next_action:'')),inquiry.id);
+    }
     el('today-count').textContent=today;el('overdue-count').textContent=overdue;el('waiting-count').textContent=waiting;
     if(!data.actions.length){item('action-list','등록된 미완료 업무가 없습니다.','');el('action-list').firstChild.className='empty';}
     if(!data.inquiries.length){item('inquiry-list','진행 중인 문의가 없습니다.','수동 문의를 등록하거나 종료 이력에서 기존 문의를 확인하세요.');el('inquiry-list').firstChild.className='empty';}

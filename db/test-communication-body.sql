@@ -1,0 +1,84 @@
+-- Synthetic-only test body, inside a transaction that must end in ROLLBACK.
+insert into auth.users(id) values('00000000-0000-4000-8000-000000000069');
+insert into public.sales_access(user_id,enabled) values('00000000-0000-4000-8000-000000000069',true);
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000069',true);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000069","role":"authenticated"}',true);
+select public.sales_register_inquiry('{"id":"00000000-0000-4000-8000-000000000068","customer_name":"SYNTHETIC foreign communication","title":"SYNTHETIC foreign","channel":"manual","received_at":"2026-10-06T09:00:00+09:00","original_text":"SYNTHETIC foreign original"}');
+select public.sales_record_message('00000000-0000-4000-8000-000000000068','{"id":"00000000-0000-4000-8000-000000000067","kind":"hq_received","target":"SYNTHETIC HQ","body":"SYNTHETIC foreign answer","occurred_at":"2026-10-06T10:00:00+09:00"}');
+select public.sales_add_hq_question('00000000-0000-4000-8000-000000000068','{"id":"00000000-0000-4000-8000-000000000066","question":"SYNTHETIC foreign question"}');
+select set_config('request.jwt.claim.sub','a11803c8-01ef-4563-95bb-c0024541be2c',true);
+select set_config('request.jwt.claims','{"sub":"a11803c8-01ef-4563-95bb-c0024541be2c","role":"authenticated"}',true);
+do $tests$
+declare iid uuid:='00000000-0000-4000-8000-000000000060'; qid uuid:='00000000-0000-4000-8000-000000000061';
+ aid uuid:='00000000-0000-4000-8000-000000000062'; mid uuid:='00000000-0000-4000-8000-000000000063';
+ sid uuid:='00000000-0000-4000-8000-000000000064'; rid uuid:='00000000-0000-4000-8000-000000000065';
+ draft jsonb; sent jsonb; received jsonb; review jsonb; rev integer;
+begin
+ if exists(select 1 from public.sales_message where id='00000000-0000-4000-8000-000000000067') or exists(select 1 from public.sales_hq_question where id='00000000-0000-4000-8000-000000000066') then raise exception 'Foreign history visible';end if;
+ perform public.sales_register_inquiry(jsonb_build_object('id',iid,'customer_name','SYNTHETIC communication','title','SYNTHETIC communication inquiry','channel','manual','received_at','2026-10-06T09:00:00+09:00','original_text','SYNTHETIC immutable original'));
+ perform public.sales_add_action(iid,jsonb_build_object('id',aid,'kind','hq_inquiry','description','SYNTHETIC actual HQ sending','mandatory',true));
+ perform public.sales_add_hq_question(iid,jsonb_build_object('id',qid,'question','SYNTHETIC availability and lead time?'));
+ perform public.sales_add_hq_question(iid,jsonb_build_object('id',qid,'question','SYNTHETIC availability and lead time?'));
+ if (select count(*) from public.sales_hq_question where inquiry_id=iid)<>1 then raise exception 'Question retry duplicated';end if;
+ begin perform public.sales_add_hq_question(iid,jsonb_build_object('id',qid,'question','changed'));raise exception 'Question retry overwrite';exception when serialization_failure then null;end;
+ draft:=jsonb_build_object('id',mid,'kind','hq_draft','target','SYNTHETIC HQ','body','SYNTHETIC draft','question_ids',jsonb_build_array(qid));
+ perform public.sales_record_message(iid,draft);perform public.sales_record_message(iid,draft);
+ if (select status from public.sales_inquiry where id=iid)<>'new' or (select count(*) from public.sales_message where inquiry_id=iid)<>1 then raise exception 'Draft changed state or retry duplicated';end if;
+ if (select question_snapshot->0->>'question' from public.sales_message where id=mid)<>'SYNTHETIC availability and lead time?' then raise exception 'Question snapshot lost';end if;
+ begin perform public.sales_record_message(iid,draft||'{"body":"changed"}');raise exception 'Message retry overwrite';exception when serialization_failure then null;end;
+ begin perform public.sales_record_message(iid,draft||'{"owner_id":"00000000-0000-4000-8000-000000000069"}');raise exception 'Client owner accepted';exception when check_violation then null;end;
+ begin perform public.sales_record_message(iid,draft||'{"question_snapshot":[]}');raise exception 'Client snapshot accepted';exception when check_violation then null;end;
+ begin perform public.sales_record_message(iid,draft||jsonb_build_object('id',gen_random_uuid(),'source_id','00000000-0000-4000-8000-000000000067'));raise exception 'Foreign source accepted';exception when check_violation then null;end;
+ begin perform public.sales_record_message(iid,draft||jsonb_build_object('id',gen_random_uuid(),'question_ids',jsonb_build_array('00000000-0000-4000-8000-000000000066')));raise exception 'Foreign question accepted';exception when check_violation then null;end;
+ begin perform public.sales_record_message(iid,draft||jsonb_build_object('id',gen_random_uuid(),'question_ids',jsonb_build_array(qid,qid)));raise exception 'Duplicate question accepted';exception when check_violation then null;end;
+ begin update public.sales_inquiry set status='waiting_for_hq',waiting_target='SYNTHETIC HQ',waiting_since=now() where id=iid;raise exception 'Waiting without sending';exception when check_violation then null;end;
+ sent:=jsonb_build_object('id',sid,'kind','hq_sent','target','SYNTHETIC HQ','body','SYNTHETIC actual final body','occurred_at','2026-10-06T10:00:00+09:00','actual_confirmed',true,'source_id',mid,'action_id',aid,'question_ids',jsonb_build_array(qid));
+ begin perform public.sales_record_message(iid,sent||jsonb_build_object('id',gen_random_uuid(),'actual_confirmed',false));raise exception 'Unconfirmed sending accepted';exception when check_violation then null;end;
+ begin perform public.sales_record_message(iid,sent||jsonb_build_object('id',gen_random_uuid(),'occurred_at',now()+interval '1 day'));raise exception 'Future sending accepted';exception when check_violation then null;end;
+ perform public.sales_record_message(iid,sent);
+ if not exists(select 1 from public.sales_inquiry where id=iid and status='waiting_for_hq' and waiting_target='SYNTHETIC HQ' and waiting_since='2026-10-06T10:00:00+09:00') or not exists(select 1 from public.sales_action where id=aid and status='completed' and completed_at is not null) then raise exception 'Sending effects lost';end if;
+ received:=jsonb_build_object('id',rid,'kind','hq_received','target','SYNTHETIC HQ','body','SYNTHETIC answer original','translation','SYNTHETIC separate translation','summary','SYNTHETIC lead time pending','occurred_at','2026-10-06T11:00:00+09:00','source_id',sid);
+ perform public.sales_record_message(iid,received);
+ if not exists(select 1 from public.sales_message where id=rid and body='SYNTHETIC answer original' and translation='SYNTHETIC separate translation') or (select status from public.sales_inquiry where id=iid)<>'customer_reply_needed' or exists(select 1 from public.sales_hq_review where question_id=qid) then raise exception 'Original or automatic review changed';end if;
+ review:=jsonb_build_object('revision',1,'status','partial','response_message_id',rid,'note','SYNTHETIC lead time unanswered');
+ if public.sales_review_hq_question(qid,review)<>2 or public.sales_review_hq_question(qid,review)<>2 then raise exception 'Review retry lost';end if;
+ begin perform public.sales_review_hq_question(qid,review||'{"note":"changed"}');raise exception 'Stale review accepted';exception when serialization_failure then null;end;
+ select revision into rev from public.sales_inquiry where id=iid;
+ begin perform public.sales_close_inquiry(iid,jsonb_build_object('revision',rev,'resolved',true));raise exception 'Partial question closure accepted';exception when check_violation then null;end;
+ begin perform public.sales_review_hq_question(qid,jsonb_build_object('revision',2,'status','answered','response_message_id','00000000-0000-4000-8000-000000000067','note','foreign'));raise exception 'Foreign answer accepted';exception when check_violation then null;end;
+ begin perform public.sales_review_hq_question(qid,'{"revision":2,"status":"answered","note":"missing evidence"}');raise exception 'Answer without evidence accepted';exception when check_violation then null;end;
+ review:=jsonb_build_object('revision',2,'status','answered','response_message_id',rid,'note','SYNTHETIC explicit sufficient answer review');
+ perform public.sales_review_hq_question(qid,review);
+ if (select count(*) from public.sales_hq_review where question_id=qid)<>2 then raise exception 'Review history overwritten';end if;
+ perform public.sales_record_message(iid,jsonb_build_object('id',gen_random_uuid(),'kind','customer_sent','target','SYNTHETIC customer','body','SYNTHETIC actual reply','occurred_at','2026-10-06T12:00:00+09:00','actual_confirmed',true));
+ perform public.sales_record_message(iid,jsonb_build_object('id',gen_random_uuid(),'kind','hq_received','target','SYNTHETIC HQ','body','SYNTHETIC historical answer','occurred_at','2026-10-06T09:30:00+09:00'));
+ if (select status from public.sales_inquiry where id=iid)<>'waiting_for_customer' then raise exception 'Historical import moved workflow backwards';end if;
+ begin update public.sales_message set body='overwrite' where id=mid;raise exception 'Message update allowed';exception when insufficient_privilege then null;end;
+ begin delete from public.sales_hq_review where question_id=qid;raise exception 'Review delete allowed';exception when insufficient_privilege then null;end;
+ select revision into rev from public.sales_inquiry where id=iid;
+ perform public.sales_close_inquiry(iid,jsonb_build_object('revision',rev,'resolved',true));
+ if public.sales_record_message(iid,draft)<>mid or public.sales_review_hq_question(qid,review)<>3 then raise exception 'Closed exact retry lost';end if;
+ begin perform public.sales_record_message(iid,draft||jsonb_build_object('id',gen_random_uuid()));raise exception 'Closed message accepted';exception when check_violation then null;end;
+ begin perform public.sales_add_hq_question(iid,jsonb_build_object('id',gen_random_uuid(),'question','new'));raise exception 'Closed question accepted';exception when check_violation then null;end;
+ begin perform public.sales_review_hq_question(qid,'{"revision":3,"status":"open"}');raise exception 'Closed review accepted';exception when check_violation then null;end;
+ if (select original_text from public.sales_inquiry where id=iid)<>'SYNTHETIC immutable original' or (select count(*) from public.sales_message where inquiry_id=iid)<>5 then raise exception 'Closed history lost';end if;
+end $tests$;
+reset role;
+update public.sales_access set enabled=false where user_id='00000000-0000-4000-8000-000000000069';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000069',true);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000069","role":"authenticated"}',true);
+do $denied$
+begin
+ if exists(select 1 from public.sales_message) or exists(select 1 from public.sales_hq_question) or exists(select 1 from public.sales_hq_review) then raise exception 'Disabled account read allowed';end if;
+ begin perform public.sales_add_hq_question('00000000-0000-4000-8000-000000000068',jsonb_build_object('id',gen_random_uuid(),'question','disabled'));raise exception 'Disabled write allowed';exception when insufficient_privilege then null;end;
+end $denied$;
+reset role;
+set local role anon;
+do $anon$
+begin
+ begin perform 1 from public.sales_message;raise exception 'Anon history read allowed';exception when insufficient_privilege then null;end;
+ begin perform public.sales_add_hq_question('00000000-0000-4000-8000-000000000060','{}');raise exception 'Anon RPC allowed';exception when insufficient_privilege then null;end;
+end $anon$;
+reset role;

@@ -1,6 +1,6 @@
 # 100G 두 제품 검색·문의 후보 연결
 
-승인된 개발계획서 제품 검색 단계. 사용자가 초기 범위를 정리된 두 제품으로 먼저 검증하도록 선택했다. 기준 커밋 e6b19f4, 브랜치 codex/login-access, 원격 없음. 기존 PC CRM·Supabase sp-crm·원본 PDF·Auth·의존성·활성 경로를 보존했다. 제품의 실제 Supabase 적용은 아직 실행하지 않았다.
+승인된 개발계획서 제품 검색 단계. 사용자가 초기 범위를 정리된 두 제품으로 먼저 검증하도록 선택했다. 기준 커밋 e6b19f4, 브랜치 codex/login-access, 원격 없음. 기존 PC CRM·Supabase sp-crm·원본 PDF·Auth·의존성·활성 경로를 보존했다. 2026-10-07 사용자가 두 제품 DB 적용을 확인한 뒤 새 Supabase에 반영했다. 실제 로그인 제품 UI 검증은 아직 남아 있다.
 
 ## 범위·결정·보존
 
@@ -34,6 +34,16 @@ src/products.mjs·api.mjs: 필터/입력, 매 요청 Auth·허용목록·owner �
 
 순서: products-rollback.sql 검사/ROLLBACK → 성공할 때만 products-apply.sql 지속 반영 → verify-product-search.sql → Security/Performance Advisor 및 실제 UI E2E. 실패한 검사 상태에서 지속 적용하지 않는다. browser의 권한 확대 실행 시점 확인 정책으로 구체적인 적용 직전에 사용자 확인을 받는다.
 
-D:/AI/projects/sp-sales-crm/outputs/에 2026-10-07-products-preview.json, products-apply.sql, products-rollback.sql, products-manifest.json, 화면·검증/요약을 저장했다. 정확한 적용 해시와 로컬 커밋은 manifest/summary에 남긴다. push하지 않는다. 복원은 e6b19f4와 필요한 파일만 비교한다. DB에는 아직 되돌릴 제품 변경이 없다.
+D:/AI/projects/sp-sales-crm/outputs/에 2026-10-07-products-preview.json, products-apply.sql, products-rollback.sql, products-manifest.json, 화면·검증/요약을 저장했다. 정확한 적용 해시와 로컬 커밋은 manifest/summary에 남긴다. push하지 않는다. 복원은 e6b19f4와 필요한 파일만 비교한다. DB 변경은 이미 반영됐다. 외부 반영분은 임의 복원하지 않고 배치 비활성화 등 영향과 승인 범위를 확인한다.
 
 최종 격리 새 세션에서도 P/N 단독 조회의 사양 조건 미입력, LR4 조건 비교, 로그아웃 정리를 확인했다. 실제 4317 서버는 이전 API를 메모리에 유지하므로 적용 후 서버를 재시작하고 최신 UI를 로드한다. 새 실제 세션 로그인은 사용자 직접 입력이 필요하다. 승인한 SQL을 재생성하지 않고 manifest 해시를 확인한 파일로 실행한다.
+
+
+## 사용자 확인 후 실제 DB 반영 — 2026-10-07
+
+- 사용자 답변 `두 제품 DB 적용`을 확인하고 동결된 SQL의 전체 입력을 SHA-256 및 정규화 문자열로 대조했다. 정확한 해시는 D outputs의 products-manifest.json을 유지하며 SQL을 재생성하지 않았다.
+- 사전 조회: PostgreSQL 17.11, 제품 테이블 없음, enabled 계정 1개. 두 제품 임시 적용·합성 검사 실행 결과 `two_product_search_rollback_passed`; 전체 변경 ROLLBACK. 이후 실제 적용 결과 `two_product_search_enabled`.
+- db/verify-product-search.sql 실행 결과 `two_product_search_post_apply_passed`. 두 제품/소유자, RLS·최소 SELECT/INSERT·invoker RPC, anon 차단, UPDATE/DELETE·catalogue INSERT 없음, 미확인 정보 유지·개인 경로와 합성 검사 자료 부재 확인.
+- Security Advisor 재조회: 오류 0, 기존 유출 비밀번호 보호 경고 1. 무료 조건 유지. Performance Advisor: 오류 0, 경고 0, 참고 12 (외래키 인덱스 8, 미사용 인덱스 4). 실사용 전 측정과 인덱스 보완 대상으로 기록하며 미사용 인덱스를 자동 삭제하지 않는다.
+- 증거: outputs의 products-rollback-passed.png, products-applied.png, products-post-verified.png, products-security.png, products-performance.png. 기존 CRM·Auth·허용 계정·무료 플랜·배포 조건은 변경하지 않았다.
+- 남은 검증: 최신 서버/화면에서 사용자 직접 로그인 후 제품 검색·후보 저장·재조회·로그아웃. 제품 후보/종료의 실제 두 세션 경합. 전체 MVP 완료가 아니다.

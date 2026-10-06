@@ -1,5 +1,6 @@
 import { actionBucket } from "../src/basic-work.mjs";
 import {initProducts} from './products.mjs';
+import {initCommunication} from './communication.mjs';
 const el = (id) => document.getElementById(id);
 const kindNames = { customer_reply: "고객 회신", hq_inquiry: "HQ 문의", hq_followup: "HQ Follow-up", customer_followup: "고객 Follow-up", other: "기타" };
 const channelNames = {manual:"수동 입력",email:"이메일",phone:"전화",meeting:"미팅",wechat:"WeChat",kakao:"카카오톡",other:"기타"};
@@ -11,6 +12,12 @@ const toIso = (value) => value ? (value.length === 16 ? value + ":00" : value) +
 function initWorkspace(api, dashboard, message) {
   const products=initProducts({api,message});
   let lookups = { customers: [], contacts: [], projects: [] }, selected = null, registerId = crypto.randomUUID(), actionId = crypto.randomUUID(), offset = 0, viewGeneration = 0, sessionGeneration = 0, currentDetailId = null;
+  let requiredActions=0;
+  const communication=initCommunication({api,message,refresh:open,onQuestions(id,count,blocked){
+    if(selected?.id!==id||selected.status==='closed')return;
+    el('close-button').disabled=requiredActions>0||count>0||blocked;
+    el('close-hint').textContent=`미완료 필수 Action ${requiredActions}개 · 미답변/부분 답변 HQ 질문 ${blocked?'확인 중':count+'개'}. 모두 검토한 뒤 종료하세요. 선택 Action은 종료 후 이력으로 보존됩니다.`;
+  }});
   const option = (value, label) => {
     const o = document.createElement("option");
     o.value = value;
@@ -24,6 +31,7 @@ function initWorkspace(api, dashboard, message) {
   }
   function show(view) {
     viewGeneration++;
+    if(view!=='detail')communication.deactivate();
     for (const name of ["dashboard", "register", "history", "detail"]) el(name + "-view").hidden = name !== view;
   }
   function lookupOptions() {
@@ -127,7 +135,7 @@ function initWorkspace(api, dashboard, message) {
     return input;
   }
   function renderDetailMeta(i) {
-    el("detail-meta").textContent = [statusNames[i.status], lookups.customers.find((c) => c.id === i.customer_id)?.name, lookups.contacts.find((c) => c.id === i.contact_id)?.name, lookups.projects.find((c) => c.id === i.project_id)?.name, channelNames[i.channel]??i.channel, seoulInput(i.received_at).replace("T", " "), "서울 시각", i.closed_at ? "종료 " + seoulInput(i.closed_at).replace("T"," ") : ""].filter(Boolean).join(" · ");
+    el("detail-meta").textContent = [statusNames[i.status], lookups.customers.find((c) => c.id === i.customer_id)?.name, lookups.contacts.find((c) => c.id === i.contact_id)?.name, lookups.projects.find((c) => c.id === i.project_id)?.name, channelNames[i.channel]??i.channel, seoulInput(i.received_at).replace("T", " "), "서울 시각", i.waiting_target?'대기 '+i.waiting_target+' / '+seoulInput(i.waiting_since).replace('T',' '):'', i.closed_at ? "종료 " + seoulInput(i.closed_at).replace("T"," ") : ""].filter(Boolean).join(" · ");
   }
   function renderParties(i) {
     el("party-editors").replaceChildren();
@@ -231,6 +239,7 @@ function initWorkspace(api, dashboard, message) {
     const active = viewGeneration;
     selected = null;
     products.reset();
+    communication.reset();
     el("detail-original").textContent = "";
     el("detail-actions").replaceChildren();
     el("party-editors").replaceChildren();
@@ -254,9 +263,11 @@ function initWorkspace(api, dashboard, message) {
       renderParties(i);
       const openActions = data.actions.filter((a) => a.status === "open");
       const required = openActions.filter((a) => a.mandatory).length;
-      el("close-button").disabled = required > 0;
+      requiredActions=required;
+      el("close-button").disabled = true;
       el("close-resolved").checked = false;
       el("close-hint").textContent = `미완료 필수 ${required}개 · 선택 ${openActions.length - required}개. 필수 업무는 완료하거나 사유를 남겨 취소해야 합니다. 선택 업무는 종료 후 이력으로 보존됩니다.`;
+      communication.bind(i,data.actions);
       message("detail-message", closed ? "종료된 문의입니다. 원문과 Action 이력을 보존합니다." : "원문을 보존하며 다음 행동을 관리합니다.");
     } catch (e) {
       if (active === viewGeneration) message("detail-message", e.message, true);
@@ -361,6 +372,7 @@ function initWorkspace(api, dashboard, message) {
   });
   return { open, reset() {
     products.reset();
+    communication.reset();
     sessionGeneration++;
     viewGeneration++;
     selected = null;

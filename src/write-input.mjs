@@ -78,5 +78,9 @@ function writeInput(operation, data) {
 }
 export {
   id,
-  writeInput
+  writeInput,
+  time,
+  revision,
+  text,
+  known
 };
