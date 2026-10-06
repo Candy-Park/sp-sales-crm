@@ -124,6 +124,9 @@ function initWorkspace(api, dashboard, message) {
     form.append(wrap);
     return input;
   }
+  function renderDetailMeta(i) {
+    el("detail-meta").textContent = [statusNames[i.status], lookups.customers.find((c) => c.id === i.customer_id)?.name, lookups.contacts.find((c) => c.id === i.contact_id)?.name, lookups.projects.find((c) => c.id === i.project_id)?.name, channelNames[i.channel]??i.channel, seoulInput(i.received_at).replace("T", " "), "서울 시각", i.closed_at ? "종료 " + seoulInput(i.closed_at).replace("T"," ") : ""].filter(Boolean).join(" · ");
+  }
   function renderParties(i) {
     el("party-editors").replaceChildren();
     for (const type of ["customer", "contact", "project"]) {
@@ -150,9 +153,11 @@ function initWorkspace(api, dashboard, message) {
         busy(form, status.id, async (epoch) => {
           await api("/api/parties", "PATCH", { kind: type, id: row.id, expected_updated_at: row.updated_at, name: name.value, note: note?.value ?? "" });
           if (epoch !== sessionGeneration) return;
-          message(status.id, "저장했습니다.");
           await loadLookups();
+          if (epoch !== sessionGeneration) return;
+          renderDetailMeta(i);
           renderParties(i);
+          message(status.id, "저장했습니다.");
         });
       });
       el("party-editors").append(form);
@@ -236,7 +241,8 @@ function initWorkspace(api, dashboard, message) {
       const i = selected, closed = i.status === "closed";
       el("detail-heading").textContent = i.title;
       el("detail-original").textContent = i.original_text;
-      el("detail-meta").textContent = [statusNames[i.status], lookups.customers.find((c) => c.id === i.customer_id)?.name, lookups.contacts.find((c) => c.id === i.contact_id)?.name, lookups.projects.find((c) => c.id === i.project_id)?.name, channelNames[i.channel]??i.channel, seoulInput(i.received_at).replace("T", " "), "서울 시각", i.closed_at ? "종료 " + seoulInput(i.closed_at).replace("T"," ") : ""].filter(Boolean).join(" · ");
+      renderDetailMeta(i);
+      message("close-message", "");
       el("detail-title").value = i.title;
       el("detail-next").value = i.next_action;
       for (const fid of ["detail-form", "action-form", "close-form"]) el(fid).hidden = closed;
@@ -314,6 +320,7 @@ function initWorkspace(api, dashboard, message) {
       if (epoch !== sessionGeneration) return;
       el("inquiry-form").reset();
       registerId = crypto.randomUUID();
+      message("register-message", "문의를 저장했습니다. 새 문의를 입력할 수 있습니다.");
       await open(data.result);
     });
   });
