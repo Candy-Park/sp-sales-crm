@@ -53,6 +53,20 @@
           <div id="detail-meta" class="section-hint"></div><h2>보존된 원문</h2><pre id="detail-original" class="original-text"></pre>
           <form id="detail-form"><label for="detail-title">문의 제목 수정</label><input id="detail-title" class="form-control" maxlength="300" required><label for="detail-next">Next Action 수정</label><textarea id="detail-next" class="form-control" rows="2" maxlength="2000"></textarea><button class="btn btn-primary">문의 변경 저장</button></form>
           <details><summary>고객사 · 담당자 · 프로젝트 수정</summary><div id="party-editors"></div></details>
+          <section class="work-section"><h2>Product / P/N Finder</h2><p class="section-hint">초기 검증 범위: 100G LR4·SR4 두 제품. 선택은 공급 확정이나 HQ 확인을 대신하지 않습니다.</p>
+            <form id="product-search-form"><div class="form-grid">
+              <label>P/N · 제품명<input name="q" class="form-control" maxlength="100"></label>
+              <label>제품군 속도 (Gbps)<input name="rate_gbps" type="number" min="0.001" step="any" class="form-control"></label>
+              <label>Form Factor<input name="form_factor" class="form-control" maxlength="100" placeholder="QSFP28"></label>
+              <label>광섬유 매체<select name="medium" class="form-select"><option value="">조건 없음</option><option>SMF</option><option>OM3</option><option>OM4</option></select></label>
+              <label>사용 거리 (m)<input name="reach_m" type="number" min="0.001" step="any" class="form-control"></label>
+              <label>출력 파장 (nm)<input name="wavelength_nm" type="number" min="0.001" step="any" class="form-control"></label>
+              <label>필요 케이스 동작 온도 최저 (°C)<input name="min_c" type="number" step="any" class="form-control"></label>
+              <label>필요 케이스 동작 온도 최고 (°C)<input name="max_c" type="number" step="any" class="form-control"></label>
+            </div><label><input name="packing" type="checkbox"> Packing 자료도 필요</label><br><button class="btn btn-primary">제품 사양 비교</button></form>
+            <p id="product-message" class="message" role="status"></p><div id="product-results"></div>
+            <h3>문의의 후보 검토 이력</h3><button id="product-history-reload" class="btn btn-outline-secondary">후보 이력 재조회</button><p id="product-history-message" class="message" role="status"></p><ul id="product-history" class="work-list"></ul>
+          </section>
           <section class="work-section"><h2>Action · 처리 이력</h2><div id="detail-actions"></div></section>
           <form id="action-form"><h2>Action 추가</h2><div class="form-grid"><div><label for="action-kind">종류</label><select id="action-kind" class="form-select"><option value="customer_reply">고객 회신</option><option value="hq_inquiry">HQ 문의</option><option value="hq_followup">HQ Follow-up</option><option value="customer_followup">고객 Follow-up</option><option value="other">기타</option></select></div><div><label for="action-due">기한 (서울 날짜)</label><input id="action-due" class="form-control" type="date"></div></div>
           <label for="action-description">다음 행동 내용</label><textarea id="action-description" class="form-control" rows="2" maxlength="2000" required></textarea><label><input id="action-mandatory" type="checkbox" checked> 필수 업무</label>

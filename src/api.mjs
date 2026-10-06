@@ -1,4 +1,5 @@
 import {id,writeInput} from './write-input.mjs';
+import {productQuery,searchProducts,linkInput} from './products.mjs';
 const projectUrl='https://glscckjmlwvxilzneqdf.supabase.co';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function reply(status, body) {
@@ -10,10 +11,11 @@ export async function handleApi(request, env, fetcher=fetch) {
   const addAction=/^\/api\/inquiries\/([0-9a-f-]+)\/actions$/i.exec(path);
   const close=/^\/api\/inquiries\/([0-9a-f-]+)\/close$/i.exec(path);
   const editAction=/^\/api\/actions\/([0-9a-f-]+)$/i.exec(path);
-  const methods=detail?['GET','PATCH']:addAction||close?['POST']:editAction||path==='/api/parties'?['PATCH']:path==='/api/inquiries'?['GET','POST']:['GET'];
+  const productLinks=/^\/api\/inquiries\/([0-9a-f-]+)\/products$/i.exec(path);
+  const methods=productLinks?['GET','POST']:detail?['GET','PATCH']:addAction||close?['POST']:editAction||path==='/api/parties'?['PATCH']:path==='/api/inquiries'?['GET','POST']:['GET'];
   if(!methods.includes(request.method)) return reply(405,{error:'지원하지 않는 요청입니다.'});
-  if(!['/api/me','/api/dashboard','/api/lookups','/api/inquiries','/api/parties'].includes(path)&&!detail&&!addAction&&!close&&!editAction) return reply(404,{error:'요청한 기능이 없습니다.'});
-  for(const match of [detail,addAction,close,editAction])if(match){try{id(match[1]);}catch{return reply(400,{error:'항목 식별자를 확인해주세요.'});}}
+  if(!['/api/me','/api/dashboard','/api/lookups','/api/inquiries','/api/parties','/api/products'].includes(path)&&!detail&&!addAction&&!close&&!editAction&&!productLinks) return reply(404,{error:'요청한 기능이 없습니다.'});
+  for(const match of [detail,addAction,close,editAction,productLinks])if(match){try{id(match[1]);}catch{return reply(400,{error:'항목 식별자를 확인해주세요.'});}}
   if(env.SUPABASE_URL!==projectUrl || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(env.SUPABASE_PUBLISHABLE_KEY ?? ''))
     return reply(503,{error:'CRM 연결 설정을 확인해야 합니다.'});
   const authorization=request.headers.get('authorization') ?? '';
@@ -50,10 +52,11 @@ export async function handleApi(request, env, fetcher=fetch) {
         if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('JSON 입력이 필요합니다.');
         const raw=await request.text();if(raw.length>700000)throw new Error('입력 내용이 너무 큽니다.');body=JSON.parse(raw);
       }catch{return reply(400,{error:'입력 형식과 크기를 확인해주세요.'});}
-      const operation=path==='/api/inquiries'?'register':addAction?'action':editAction?'action-edit':close?'close':detail?'inquiry-edit':'party';
-      let data;try{data=writeInput(operation,body);}catch(error){return reply(400,{error:error.message});}
-      const rpc={register:'sales_register_inquiry',action:'sales_add_action','action-edit':'sales_edit_action',close:'sales_close_inquiry','inquiry-edit':'sales_edit_inquiry',party:'sales_edit_party'}[operation];
+      const operation=productLinks?'product-link':path==='/api/inquiries'?'register':addAction?'action':editAction?'action-edit':close?'close':detail?'inquiry-edit':'party';
+      let data;try{data=productLinks?linkInput(body):writeInput(operation,body);}catch(error){return reply(400,{error:error.message});}
+      const rpc={register:'sales_register_inquiry',action:'sales_add_action','action-edit':'sales_edit_action',close:'sales_close_inquiry','inquiry-edit':'sales_edit_inquiry',party:'sales_edit_party','product-link':'sales_link_product'}[operation];
       const params={p_data:data};if(addAction)params.p_inquiry_id=addAction[1];if(editAction||close||detail)params.p_id=(editAction||close||detail)[1];
+      if(productLinks)params.p_inquiry_id=productLinks[1];
       const response=await call('/rest/v1/rpc/'+rpc,{},params);
       if(!response.ok){
         const failure=await response.json().catch(()=>({}));
@@ -63,6 +66,16 @@ export async function handleApi(request, env, fetcher=fetch) {
         return reply(503,{error:'저장 결과를 확인하지 못했습니다. 입력을 유지했습니다. 재조회 후 같은 요청으로 다시 시도해주세요.'});
       }
       return reply(200,{result:await response.json()});
+    }
+    if(path==='/api/products'){
+      let query;try{query=productQuery(new URL(request.url).searchParams);}catch(error){return reply(400,{error:error.message});}
+      const rows=await read('sales_product','id,spec,batch_id,source_sha256,reviewed_on',{order:'pn.asc',limit:'1001',enabled:'eq.true'});
+      if(rows.length>1000)return reply(503,{error:'제품 범위가 1,000개를 넘었습니다. 검색 범위를 조정해야 합니다.'});
+      return reply(200,{products:searchProducts(rows.map(r=>({...r.spec,id:r.id,batch_id:r.batch_id,source_sha256:r.source_sha256,reviewed_on:r.reviewed_on})),query),catalogCount:rows.length});
+    }
+    if(productLinks){
+      const links=await read('sales_inquiry_product','*',{inquiry_id:'eq.'+productLinks[1],order:'created_at.desc,id.desc',limit:'1001'});
+      return reply(200,{links:links.slice(0,1000),truncated:links.length>1000});
     }
     if(path==='/api/lookups'){
       const [customers,contacts,projects]=await Promise.all([

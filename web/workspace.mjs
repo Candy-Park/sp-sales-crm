@@ -1,4 +1,5 @@
 import { actionBucket } from "../src/basic-work.mjs";
+import {initProducts} from './products.mjs';
 const el = (id) => document.getElementById(id);
 const kindNames = { customer_reply: "고객 회신", hq_inquiry: "HQ 문의", hq_followup: "HQ Follow-up", customer_followup: "고객 Follow-up", other: "기타" };
 const channelNames = {manual:"수동 입력",email:"이메일",phone:"전화",meeting:"미팅",wechat:"WeChat",kakao:"카카오톡",other:"기타"};
@@ -8,6 +9,7 @@ function seoulInput(iso) {
 }
 const toIso = (value) => value ? (value.length === 16 ? value + ":00" : value) + "+09:00" : null;
 function initWorkspace(api, dashboard, message) {
+  const products=initProducts({api,message});
   let lookups = { customers: [], contacts: [], projects: [] }, selected = null, registerId = crypto.randomUUID(), actionId = crypto.randomUUID(), offset = 0, viewGeneration = 0, sessionGeneration = 0, currentDetailId = null;
   const option = (value, label) => {
     const o = document.createElement("option");
@@ -228,6 +230,7 @@ function initWorkspace(api, dashboard, message) {
     show("detail");
     const active = viewGeneration;
     selected = null;
+    products.reset();
     el("detail-original").textContent = "";
     el("detail-actions").replaceChildren();
     el("party-editors").replaceChildren();
@@ -242,6 +245,7 @@ function initWorkspace(api, dashboard, message) {
       el("detail-heading").textContent = i.title;
       el("detail-original").textContent = i.original_text;
       renderDetailMeta(i);
+      products.bind(i);
       message("close-message", "");
       el("detail-title").value = i.title;
       el("detail-next").value = i.next_action;
@@ -356,6 +360,7 @@ function initWorkspace(api, dashboard, message) {
     });
   });
   return { open, reset() {
+    products.reset();
     sessionGeneration++;
     viewGeneration++;
     selected = null;

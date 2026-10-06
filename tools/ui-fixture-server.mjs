@@ -7,7 +7,9 @@ import { handleApi } from "../src/api.mjs";
 const output = "D:/AI/projects/sp-sales-crm/outputs/ui-fixture/";
 await mkdir(output, { recursive: true });
 await build({ entryPoints: ["web/app.mjs"], bundle: true, format: "esm", outfile: output + "app.js", alias: { "@supabase/supabase-js": "./tests/fake-supabase.mjs" } });
-const uid = "a11803c8-01ef-4563-95bb-c0024541be2c", rows = { sales_customer: [], sales_contact: [], sales_project: [], sales_inquiry: [], sales_action: [] };
+let fixtureProducts=[];
+try{fixtureProducts=JSON.parse(await readFile(output+"../2026-10-07-products-preview.json","utf8")).products;}catch(error){if(error.code!=='ENOENT')throw error;}
+const uid = "a11803c8-01ef-4563-95bb-c0024541be2c", rows = { sales_customer: [], sales_contact: [], sales_project: [], sales_inquiry: [], sales_action: [], sales_product: fixtureProducts.map(p=>({...p,enabled:true})), sales_inquiry_product: [] };
 const env = { SUPABASE_URL: "https://glscckjmlwvxilzneqdf.supabase.co", SUPABASE_PUBLISHABLE_KEY: "sb_publishable_synthetic" };
 let failNext = false;
 const stamps = () => (/* @__PURE__ */ new Date()).toISOString();
@@ -39,6 +41,14 @@ async function mock(url, init) {
         }
       }
       rows.sales_inquiry.push({ ...d, ...linked, owner_id: uid, customer_id: cid, status: "new", revision: 1, created_at: stamps(), updated_at: stamps() });
+      return Response.json(d.id);
+    }
+    if (rpc === "sales_link_product") {
+      const i=rows.sales_inquiry.find(r=>r.id===iid),p=rows.sales_product.find(r=>r.id===d.product_id);
+      const old=rows.sales_inquiry_product.find(r=>r.id===d.id);
+      if(old)return JSON.stringify([old.inquiry_id,old.product_id,old.disposition,old.reason])===JSON.stringify([iid,d.product_id,d.disposition,d.reason])?Response.json(old.id):responseError("40001");
+      if(!i||i.status==="closed"||!p)return responseError("23514");
+      rows.sales_inquiry_product.unshift({...d,inquiry_id:iid,owner_id:uid,snapshot:{spec:p.spec,batch_id:p.batch_id,source_sha256:p.source_sha256,reviewed_on:p.reviewed_on},created_at:stamps()});
       return Response.json(d.id);
     }
     if (rpc === "sales_add_action") {
@@ -86,7 +96,7 @@ createServer(async (req, res) => {
     }
     if (url.pathname === "/__fixture/report") {
       res.setHeader("Content-Type", "application/json");
-      const report = { synthetic: true, customers: rows.sales_customer.length, inquiries: rows.sales_inquiry.map((i) => ({ status: i.status, title: i.title, original_text: i.original_text, revision: i.revision })), actions: rows.sales_action.map((a) => ({ status: a.status, description: a.description, cancel_reason: a.cancel_reason, revision: a.revision })) };
+      const report = { synthetic: true, customers: rows.sales_customer.length, product_reviews: rows.sales_inquiry_product, inquiries: rows.sales_inquiry.map((i) => ({ status: i.status, title: i.title, original_text: i.original_text, revision: i.revision })), actions: rows.sales_action.map((a) => ({ status: a.status, description: a.description, cancel_reason: a.cancel_reason, revision: a.revision })) };
       await writeFile(output + "report.json", JSON.stringify(report, null, 2));
       res.end(JSON.stringify(report));
       return;
