@@ -81,3 +81,17 @@ class SyncTests(unittest.TestCase):
                 self.assertEqual(result['review_sync']['proposals'],0)
                 self.assertEqual(result['review_sync']['error'],'invalid_receipt')
             finally:box.close()
+
+    def test_520_retries_same_proposal_and_stops_after_three_attempts(self):
+        from outlook_review_sync import retry
+        seen=[];data={'p_data':{'id':str(uuid.uuid4())}}
+        def rpc(name,value):
+            seen.append(value)
+            if len(seen)==1:raise DeliveryError(520)
+            return {'id':value['p_data']['id']}
+        result=retry(rpc,'sales_propose_outlook',data,lambda _:None)
+        self.assertEqual(result['id'],data['p_data']['id']);self.assertEqual(seen[0],seen[1])
+        calls=[]
+        def failing(name,value):calls.append(value);raise DeliveryError(520)
+        with self.assertRaises(DeliveryError):retry(failing,'sales_propose_outlook',data,lambda _:None)
+        self.assertEqual(len(calls),3)

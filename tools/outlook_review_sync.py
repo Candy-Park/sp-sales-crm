@@ -2,7 +2,7 @@
 import json
 import time
 import uuid
-from outlook_outbox import canonical, DeliveryError
+from outlook_outbox import canonical, DeliveryError, RETRYABLE_STATUS
 from outlook_review import report, merge_outbox, CONFIRMED_CATEGORIES, CONFIRMED_ROLES
 
 RULE_VERSION='local-rules:d595a83'
@@ -16,7 +16,7 @@ def retry(rpc,name,data,wait):
     for attempt in range(3):
         try:return rpc(name,data)
         except DeliveryError as error:
-            if error.status not in {408,429,500,502,503,504} or attempt==2:raise
+            if error.status not in RETRYABLE_STATUS or attempt==2:raise
         except (TimeoutError,OSError):
             if attempt==2:raise
         wait(attempt+1)

@@ -11,6 +11,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+RETRYABLE_STATUS=frozenset({408,429,500,502,503,504,520})
 HEX=re.compile(r'^[0-9a-f]{64}$')
 MAIL_FIELDS={'source_key','identity_method','direction','subject','body','sender','recipients','occurred_at','conversation_key','attachments'}
 
@@ -134,7 +135,7 @@ class Outbox:
                     delivered+=1; break
                 except DeliveryError as failure:
                     error=f'http_{failure.status}'
-                    if failure.status not in {408,429,500,502,503,504} or attempt==2:break
+                    if failure.status not in RETRYABLE_STATUS or attempt==2:break
                     wait(attempt+1); continue
                 except (TimeoutError,OSError):
                     error='network_error'

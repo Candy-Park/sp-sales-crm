@@ -237,3 +237,27 @@ D outputs의 2026-10-07-outlook-live-link- 접두어에 before.txt, after.txt, r
 현재 실제 서버는 여전히 338건이다. 새 Chrome 탭 직접 로그인 이후 오늘 신규 4건·받은 메일 분류 제안 295건·사용자 확인 2건을 실제 인증 API로 연결하고 재연결/재시작/원문·영수증/이후 확정 보존을 DB와 대조해야 한다. **수집·분류 서버 연결 전체 완료로 보고하지 않는다.** 대표 미확인 업무 관계는 답변 전 제안 상태다. 이후 분류별 정답·독립 평가 표본, AI 서비스/모델/비용, 실제 두 세션 경합, Supabase 전체 DB 복원·1주 실사용도 남아 있다.
 
 소스/문서는 `d595a83` 또는 경로별 사본과 비교해 해당 변경만 복원할 수 있다. 새 DB 적용은 임의로 되돌리지 않는다. 이전 API로 복원해도 원문/영수증·신규 분류 이력을 보존하며 테이블을 삭제하거나 기존 DDL 전체를 재실행하지 않는다. SQLite 백업/시뮬레이션 사본을 운영 원본에 덮지 않는다. 다시 진행할 때 새 DB SQL을 재적용하지 않고 로그인/현 상태 확인 후 명시적 연결과 검증부터 이어간다.
+
+## 사용자 로그인 후 실제 분류 연결 검증 — 2026-10-07
+
+사용자가 새 Chrome 로그인 완료를 알려줬다. 시작 `386939a`, 브랜치 `codex/login-access`, 원격 없음. 로그인된 새 탭의 분류 연결 버튼을 직접 실행했다. 비밀번호/토큰을 추출·복사하지 않았고 기존 탭을 새로고침하지 않았다. 실제 적용 SQL은 재실행하지 않았다. 작업 전 개발 보고서/작업 기록과 보완 소스 기준 사본은 D outputs/2026-10-07-classification-live-before/에 보존했다.
+
+첫 실제 연결: 오늘 5건 중 중복 1·신규 4를 서버에 반영하여 원문/영수증 342·미전송 0이 됐다. 기존 338행의 ID/원문/영수증과 소유자 바인딩은 사전 백업과 정확히 같다. SQL의 로컬/서버 전수 대조는 expected/matched/identity-original-hash/body-or-hold 모두 342다. 본문은 서버 쿼리에 넣지 않고 해시만 비교했다. 원문 검증 SQL/실메일별 키는 ignored notes에만, 공유 결과는 D outputs의 live-originals.txt/live-queue.json에 남겼다.
+
+분류 제안은 성공 응답 153건 후 HTTP 520으로 중단됐고 사용자 확인 이력은 아직 0이었다. 중단을 전체 완료로 보고하지 않았다. [Cloudflare 공식 520 문서](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/error-520/)와 Supabase 상태 페이지를 확인했다. 520은 원본 서버의 비정상/불명 응답을 나타내지만 이번 요청의 구체적인 원인을 확정하지 않았다. 연결·인증 설정이나 보안을 바꾸지 않고 idempotent 요청의 한정 재시도 대상으로만 추가했다.
+
+`tools/outlook_outbox.py`의 공통 RETRYABLE_STATUS를 `outlook_review_sync.py`와 공유하여 520도 같은 요청 ID/내용으로 최대 3회 시도한다. 401/403/409/422를 자동 재시도하지 않는 기존 조건을 유지한다. 수정 전 합성 실패를 520-red.txt에 보관한 뒤 수정했고 전체 Python 66·Node 88 검사 통과. 규칙 버전/제안 내용/DB 스키마는 바꾸지 않았다. 새 프로세스로 연결을 다시 실행하여 이미 저장한 제안을 보존하면서 이어가는 실제 검증을 진행한다.
+
+### 최종 실제 검증 결과
+
+1. 같은 CRM 연결을 다시 실행해 제안 295·사용자 확인 사례 2건을 실제 저장했다. SQL expected/matched/metadata-match 모두 295이며 부분 성공 153건을 중복 추가하지 않았다. 사용자 확인 사례는 스팸 2건뿐이고 상대 역할은 미확인이다. 다른 메일의 분류 제안은 사용자 정답으로 승격하거나 자동 제외/문의 연결하지 않았다.
+2. ignored `notes/classification-loss-server.mjs`는 기존 인증 API 실행 후 지정된 확정 스팸 1건의 성공 응답만 한 번 503으로 바꿨다. 동일한 미확인/스팸 저장이 DB에서 버전 2/총 이력 3건으로 성공했지만 UI는 버전 1·오류와 입력을 유지했다. 같은 버튼 재시도 후 오류가 사라지고 최신 버전 2를 조회했다. 재시도 전후 label ID/생성 시각 집계 해시가 같고 이력이 3건에서 늘지 않았다. 실제 520 중단과 이 통제된 저장 응답 유실 시험은 별도다. 토큰·요청 내용은 읽거나 로그에 남기지 않았다.
+3. 정확한 실행 파일/프로세스 ID를 확인해 임시 검증 서버만 종료하고 일반 `tools/dev-server.mjs`로 재시작했다. 브라우저 새로고침 없이 명시적 제안 연결을 다시 실행했다. 제안 295·확정 2·이력 3·최신 버전 2와 제안/확정 ID·시각 해시가 모두 유지됐다. seed의 옛 성공 요청 응답은 최신 확정을 되돌리지 않았다. UI의 확인 사례 2는 성공 영수증 응답 수이며 신규 확정 이력 수와 다르다. 충돌 건수 0도 최신 확정 보존 여부 전체의 계수가 아니다.
+4. CRM에서 기존 승인 기간(서울 9월 7일 01:27 이상~10월 7일 01:27 미만)을 직접 재수집했다. 실제 캡처 338건의 원본 키/원문 해시/기간이 이전 캡처와 모두 일치하며 신규 0·중복 338이다. 운영 SQLite 총 342·영수증 342·미전송 0, 기존 338행의 ID/원문/영수증과 소유자 바인딩 정확 일치, integrity=ok. 로컬 보관 범위 종료 11:15를 축소하지 않았다. 개인 캡처 경로는 ignored `notes/outlook-classification-live-recapture-location.json`에만 기록했다. 검증 스크립트에서 캡처에 없는 payload_hash 필드를 참조한 KeyError는 원문 canonical SHA-256 계산으로 바로잡았으며 운영 큐를 수정하지 않았다.
+5. 실제 사후 DB 총 342·proposals 295·confirmed 2·label_history 3·linked 1·excluded 0·held 4(서버 body null). 기존 338건의 원문/상태 집계 해시는 연결 전과 일치한다. `db/verify-outlook-classification.sql`의 소유자 view/확정 우선·RLS·invoker/view_invoker·이력 UPDATE/DELETE·시각 INSERT·익명 차단 검사가 통과했다. `db/verify-outlook-collection.sql`은 실제 소유자 조회·미허용/익명 수집·연결 차단과 원문 수정/삭제 금지 검사를 통과했다. 재시작한 HTTP review-sync API는 익명 401·무효 Bearer 401·다른 Origin 403이다. 실제 두 로그인 세션의 동시 경합 검수와 구분한다.
+
+산출물은 D outputs/2026-10-07-classification-live- 접두어: originals.txt/proposals.txt/queue.json, label-before/lost/retried/restarted/recaptured.txt, restarted.txt/recapture-status.txt/recapture.json, db-final.txt/access.txt/http-access.json, python.txt(66)/node.txt(88), proof.png다. 원문·토큰 없이 건수·집계 해시·boolean을 남겼고 proof.png는 상세 원문을 닫은 실제 사용자 확정 2건 화면이다. 프런트엔드/API 변경이 없어 빌드는 반복하지 않았다. 이전 빌드 결과와 이번 수정 후 검사를 구분한다. `git diff --check` 후 위 Python 소스 2·합성 검사 2·개발 보고서·이 작업 기록만 선별 로컬 커밋하며 커밋 ID는 Git 이력으로 연결한다. 원격·push·배포 없음.
+
+이후에는 고객/HQ 등 분류별 사용자 확정 사례와 독립 평가 표본을 늘려야 한다. 미답변 업무 관계는 계속 제안 상태다. 실제 AI 호출/모델 학습, 두 세션 경합·토큰 만료 UI·폴더 이동/답장/전달·전체 Supabase 백업 복원·1주 실사용은 미완료다. 오늘 11:14 수집 확인 이후 메일과 정크 폴더 전체로 확대하지 않았다. 기존 PC CRM/sp-crm, 로컬 활성 경로·Auth·무료 플랜·긴 원문·실제 문의와 기존 제품/회신 SQL·동결 산출물을 보존했다.
+
+복원은 `386939a` 또는 live-before/ 사본과 파일별 비교하여 이번 소스/문서 변경만 되돌리는 방식으로 검토한다. 운영 DB 원문/영수증/제안/확정 이력과 현재 SQLite는 삭제·덮어쓰기하지 않는다. 임시 응답 유실 서버는 종료했고 일반 로컬 서버를 유지한다. 다음 실행에서는 SQL 재적용이나 원문 재업로드부터 시작하지 않고 현재 로그인/집계 상태를 먼저 확인한다.

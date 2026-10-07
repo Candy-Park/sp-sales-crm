@@ -94,6 +94,14 @@ class OutboxTests(unittest.TestCase):
         report=self.queue.flush(SCOPE,send,wait=lambda seconds:None)
         self.assertEqual(report['delivered'],1); self.assertEqual(report['error'],None)
         self.assertEqual(calls[0],calls[1]); self.assertEqual(self.queue.pending(SCOPE),[])
+    def test_520_mail_acknowledgement_retries_same_record(self):
+        self.queue.stage(batch(mail())); calls=[]
+        def send(row):
+            calls.append(row)
+            if len(calls)==1:raise module.DeliveryError(520)
+            return dict(id=row['id'],source_key=row['source_key'],payload_hash=row['payload_hash'])
+        result=self.queue.flush(SCOPE,send,wait=lambda _:None)
+        self.assertEqual(result['delivered'],1);self.assertEqual(calls[0],calls[1]);self.assertEqual(self.queue.pending(SCOPE),[])
     def test_auth_and_constraint_failures_stop_without_retry_or_skipping(self):
         for status in [401,403,409,422]:
             with self.subTest(status=status):
