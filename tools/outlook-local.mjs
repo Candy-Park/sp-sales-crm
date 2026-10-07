@@ -14,12 +14,13 @@ function invoke(input){
   });
 }
 export function localOutlook(config){
-  return async(method,owner,authorization)=>{
+  return async(method,owner,authorization,mode='collect')=>{
+    if(!['collect','review-sync'].includes(mode))throw new Error('Invalid collector mode');
     if(active&&active.owner!==owner)throw new Error('Collector occupied');
     if(method==='POST'){
       if(!active){
         active={owner};states.set(owner,{...states.get(owner),running:true,error:null});
-        invoke({mode:'collect',owner,authorization,key:config.SUPABASE_PUBLISHABLE_KEY}).then(result=>states.set(owner,{...result,running:false}),()=>states.set(owner,{running:false,error:'local_collection_failed'})).finally(()=>{active=null;});
+        invoke({mode,owner,authorization,key:config.SUPABASE_PUBLISHABLE_KEY}).then(result=>states.set(owner,{...result,running:false}),()=>states.set(owner,{running:false,error:'local_collection_failed'})).finally(()=>{active=null;});
       }
       return states.get(owner);
     }

@@ -82,6 +82,11 @@ class Outbox:
         if not isinstance(batch['records'],list) or len(batch['records'])>5000:raise ValueError('Invalid capture size')
         inserted=duplicates=0
         with self.connection:
+            previous=self.connection.execute('SELECT window_start,window_end FROM capture_state WHERE scope_key=?',(scope,)).fetchone()
+            kept_start=batch['start'];kept_end=batch['end']
+            if previous:
+                if date(previous[0])<start:kept_start=previous[0]
+                if date(previous[1])>end:kept_end=previous[1]
             for record in batch['records']:
                 value=valid_mail(record,start,end); payload=canonical(value)
                 hashed=hashlib.sha256(payload.encode('utf-8')).hexdigest()
@@ -93,7 +98,7 @@ class Outbox:
                     self.connection.execute('INSERT INTO mail_outbox VALUES(?,?,?,?,?,NULL)',(scope,value['source_key'],str(uuid.uuid4()),payload,hashed)); inserted+=1
             self.connection.execute("""INSERT INTO capture_state(scope_key,last_capture_at,window_start,window_end)
               VALUES(?,?,?,?) ON CONFLICT(scope_key) DO UPDATE SET last_capture_at=excluded.last_capture_at,
-              window_start=excluded.window_start,window_end=excluded.window_end""",(scope,self.now(),batch['start'],batch['end']))
+              window_start=excluded.window_start,window_end=excluded.window_end""",(scope,self.now(),kept_start,kept_end))
         return {'inserted':inserted,'duplicates':duplicates}
     def pending(self,scope,limit=100):
         digest(scope)

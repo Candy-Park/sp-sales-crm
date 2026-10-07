@@ -204,3 +204,36 @@ D outputs의 2026-10-07-outlook-live-link- 접두어에 before.txt, after.txt, r
 산출물은 D outputs/2026-10-07-learning-mail-review.json/.md, learning-mail-review-initial.json, learning-review-preservation.json, learning-review-python-tests.txt/node-tests.txt와 위 red 기록이다. 개인 메일별 제안/정답·도메인 보완 및 임시 조회 스크립트는 Git에 넣지 않는다. 도구·합성 검사·검토 기록·개발 보고서·이 작업 기록만 선별 로컬 커밋한다. 원격·push·배포 없음. 소스/문서는 `4049a6e` 또는 위 사본과 파일별 비교해 복원하고 현재 운영 데이터·원문·정답 자료를 덮거나 삭제하지 않는다.
 
 남은 작업: 분류별 사용자 확정/수정과 독립 평가 표본, 실제 의미 검토 방식·AI 서비스/모델/비용 결정, CRM 분류 화면과 오늘 신규 4건의 서버 연결. 두 실제 세션 경합·Supabase 전체 DB 복원·1주 실사용은 별도 미완료다. 새 Supabase DDL이나 기존 제품/회신 SQL을 실행하지 않았고 기존 PC CRM/sp-crm과 동결 산출물·활성 경로를 유지했다.
+
+## CRM 분류 검토·확정 이력 구현 — 2026-10-07
+
+사용자가 계속 진행을 요청하여 이전 오프라인 분류 검토를 CRM의 제안/사용자 확정 화면과 인증된 명시적 연결 작업으로 이어갔다. 시작 `d595a83`, 브랜치 `codex/login-access`, 원격 없음. 기존 지침과 승인된 메일별 수동 검토 범위를 유지하며 대표 HQ/전시회 관계의 미답변을 임의 확정하지 않았다.
+
+### 변경·백업·보존
+
+- `src/outlook.mjs`, `src/api.mjs`: 명시적 상대/업무 분류·요청 ID/버전 검증, 인증/allowlist 이후 분류 RPC, 소유자 view의 분류/검토 상태 필터·페이지·본문 없는 목록. 상세 원문은 기존 소유자 조회로 유지한다.
+- `db/outlook-classification.sql`: 제안/확정 append-only 이력 두 테이블, 소유자+허용 계정 RLS, 최소 SELECT/컬럼 INSERT, invoker RPC·view. 메일 행을 잠가 버전 경합을 검사하며 같은 요청 ID의 응답 유실 재시도는 중복 없이 복구하고 이후 확정을 되돌리지 않는다. 재동기화 제안은 사용자 확정을 덮지 않는다. 기존 메일/제품/회신 테이블과 DDL을 변경하거나 재실행하지 않았다.
+- `tools/outlook_review_sync.py`, `outlook_bridge.py`, `outlook-local.mjs`: CRM 명시적 연결에서 승인된 오늘 검토본만 stage/영수증 전송 후 보존된 받은 메일 제안을 연결한다. 제안 요청 ID는 소유자·원본 키·규칙 버전/메타데이터에서 결정하여 프로세스 재시작에도 재사용한다. 전송 실패 시 분류를 시작하지 않으며 일시 오류 재시도 최대 3회, 성공 영수증을 검증한다. 사용자 확인 사례 2건만 최초 확정으로 연결하고 기존 수정 충돌이면 보존한다. 인증은 stdin/메모리로만 전달한다.
+- `tools/outlook_outbox.py`: 나중 수집본의 짧은 기간이 이전 원문 검증 범위를 축소하는 결함을 발견해 기존 시작/종료와 새 범위의 최소/최대 시각을 보존하도록 수정했다. CRM에는 로컬 보관 범위와 직접 재수집 승인 기간을 따로 표시한다. 보관 범위 표시를 전체 기간의 모든 메일 수집 완료로 해석하지 않는다.
+- `web/index.html`, `web/outlook.mjs`: 분류/확정 상태 필터, 제안·근거·참조 고객과 실제 상대 역할 구분, 사용자 확정/수정·최신 재조회, 응답 불확실 시 입력/요청 ID 유지, 필터 변경/로그아웃 시 지연 응답 차단. 확정은 업무 제외·문의 연결과 독립적이다. 좁은 기존 Chrome 창에서 Outlook 메뉴가 숨겨진 문제를 확인해 모바일 메뉴를 추가했다. SP 색상과 로고를 유지한다.
+- 합성 검사는 `tests/outlook.test.mjs`, `tests/outlook-ui.test.mjs`, `tests/test_outlook_outbox.py`, `tests/test_outlook_review_sync.py`, DB 검사/조회는 `db/test-outlook-classification.sql`, `db/verify-outlook-classification.sql`에 둔다.
+
+변경 전 경로별 소스/문서는 D outputs/2026-10-07-classification-before/에 시작 Git 기준 사본으로 보존했다. 초기 평면 사본의 동일 이름 충돌은 `src/`·`web/` 경로별 기준 사본으로 보완했다. 운영 SQLite는 backup API로 D sources/outlook/backups/outbox-before-classification-20261007.sqlite에 별도 보존했다. 원문·메일별 제안/정답·도메인 설정은 ignored notes와 D sources에 유지하며 Git/로그에 넣지 않았다. 기존 PC CRM/sp-crm, 활성 경로, .env/Auth, 무료 플랜, 원문·영수증 338건, 긴 본문 4건, 기존 실제 문의 연결 1건·업무 제외 0건을 보존했다. 외부 AI 호출·자동 발송·인증 영구 저장·백그라운드 자동 실행·원격/push/배포 없음.
+
+### 실제 적용·검증 결과와 한계
+
+1. Supabase 커넥터가 로그인/연결되지 않아 기존 로그인 Chrome SQL Editor의 새 프로젝트에서 준비한 증분 SQL만 적용했다. 사전 메일 338·DB version 170011·신규 테이블 부재·허용 계정 1, 적용 Success 확인. 기 적용 SQL을 반복하지 않았다.
+2. 실제 합성 ROLLBACK 검사: `outlook_classification_rollback_passed`, real_total=338, remaining_fixtures=0, remaining_test_users=0, invoker/view_invoker=true. 제안 idempotency/동일 ID 다른 내용 거절, 제안과 정답 구분, 수정 이력, 오래된 성공 요청 재시도/새 요청의 stale 충돌, 제안의 정답 덮기 차단, 직접 버전 위조/UPDATE·DELETE 차단, 원문·연결·제외·held 유지, 다른 허용 소유자/미허용/익명 접근 차단을 확인했다. 실제 두 사용자 세션의 경합 시험과 구분한다.
+3. 실제 사후 조회: 총 338·linked 1·held 4(서버 본문 null)·excluded 0·proposals 0·label_history/confirmed 0. 원문/상태 기준 SHA-256을 저장했고 RLS/invoker/view-invoker/수정삭제 차단/anon 차단/생성 시각 INSERT 차단 모두 true다. 새 Advisor 실행은 커넥터 미연결로 확인하지 않았으며 기존 Advisor 결과를 새 검사 통과로 주장하지 않는다.
+4. 최신 서버의 직접 연결/분류 API: 익명 401, 무효 Bearer 401, 다른 Origin 403. 4317의 정확한 Node 서버 프로세스를 확인하여 새 API로 재시작했고 dist를 새로 빌드했다. 기존 사용자 로그인 탭을 새로고침하지 않았다. 새 기능을 담은 별도 Chrome 탭은 메모리 인증을 공유하지 않아 직접 로그인 대기를 요청했다. 기존 좁은 창의 메뉴 숨김을 확인했고 이를 세션 만료로 오인하지 않았다. 토큰을 추출하거나 다른 탭에 복사하지 않았다.
+5. 네트워크 없는 별도 합성 Chrome UI: 제안·미확정 표시 → 상대/분류 확정 → 최신 확정 버전 1 조회 → 상대/분류 수정 → 버전 2 조회, 확정 필터의 목록 확인. 520px 임시 화면에서 모바일 Outlook 메뉴 진입·목록을 확인하고 원래 화면 크기로 복원했다. 실제 본문 없는 가상 자료만 사용했으며 임시 서버를 종료한다. 별도 ignored fixture와 D outputs/2026-10-07-classification-ui/ 및 classification-ui-final/로 빌드했고 기존 동결 ui-fixture 산출물을 재생성하지 않았다.
+6. 운영 큐를 D scratch/classification-dry-run-20261007/에 격리 복사한 시뮬레이션: 신규 4/중복 1, 가상 영수증 4, 제안 295/확인 사례 2, 총 342·integrity ok. 기존 338행의 ID/원문/영수증이 정확히 유지됐다. 이 결과는 **실제 서버 업로드 0·네트워크 호출 0**이다. 실제 운영 큐의 원문/영수증/수집 상태/바인딩 전체 해시는 사전 백업과 같으며 운영 데이터에 시뮬레이션 영수증을 기록하지 않았다.
+7. 검사에서 기능 부재를 먼저 재현한 뒤 구현했다. 분류 UI 조회 조건의 기대 URL에서 한글 인코딩 검사를 잘못 적은 테스트 1건을 decode 비교로 고쳤다. 최종 Node 88/88·Python 64/64·npm run build·git diff --check 통과. 운영용 dist는 실제 Supabase 클라이언트이며 fake auth는 별도 합성 빌드에만 사용했다.
+
+증거는 D outputs의 2026-10-07-classification- 접두어: queue-before.json, db-test.txt, db-before-sync.txt, db-proof.png, api-access.json, dry-run.json, preservation.json, node-final.txt, python-tests.txt, build.txt, review-proof.png/ui-proof.png 및 SQL 파일 해시 manifest다. DB 결과에는 건수·집계 해시/boolean만, 합성 화면에는 가상 자료만 포함한다. 관련 소스/SQL/합성 검사/기획·결정·구현·작업 기록만 선별 로컬 커밋하며 ID는 Git 이력으로 연결한다. 원격 없음.
+
+### 남은 작업·복원
+
+현재 실제 서버는 여전히 338건이다. 새 Chrome 탭 직접 로그인 이후 오늘 신규 4건·받은 메일 분류 제안 295건·사용자 확인 2건을 실제 인증 API로 연결하고 재연결/재시작/원문·영수증/이후 확정 보존을 DB와 대조해야 한다. **수집·분류 서버 연결 전체 완료로 보고하지 않는다.** 대표 미확인 업무 관계는 답변 전 제안 상태다. 이후 분류별 정답·독립 평가 표본, AI 서비스/모델/비용, 실제 두 세션 경합, Supabase 전체 DB 복원·1주 실사용도 남아 있다.
+
+소스/문서는 `d595a83` 또는 경로별 사본과 비교해 해당 변경만 복원할 수 있다. 새 DB 적용은 임의로 되돌리지 않는다. 이전 API로 복원해도 원문/영수증·신규 분류 이력을 보존하며 테이블을 삭제하거나 기존 DDL 전체를 재실행하지 않는다. SQLite 백업/시뮬레이션 사본을 운영 원본에 덮지 않는다. 다시 진행할 때 새 DB SQL을 재적용하지 않고 로그인/현 상태 확인 후 명시적 연결과 검증부터 이어간다.

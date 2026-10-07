@@ -25,9 +25,18 @@ def location():
 
 def run(config):
     batch=json.loads(location().read_text(encoding='utf-8-sig'))
+    approved_period={'start':batch['start'],'end':batch['end']}
     box=Outbox(ROOT/'outbox.sqlite')
     try:
         box.bind_owner(config['owner'])
+        def rpc(name,data):
+            request=Request(PROJECT+'/rest/v1/rpc/'+name,data=json.dumps(data,ensure_ascii=False).encode(),
+                headers={'apikey':config['key'],'Authorization':config['authorization'],'Content-Type':'application/json'})
+            try:
+                with urlopen(request,timeout=15) as response:return json.load(response)
+            except HTTPError as e:raise DeliveryError(e.code) from None
+            except URLError:raise OSError('Network unavailable') from None
+        review_sync=None
         if config.get('mode')=='collect':
             destination=ROOT/('capture-crm-'+str(uuid.uuid4())+'.json')
             # Only hashes, approved window, and non-secret file paths in process arguments.
@@ -38,17 +47,23 @@ def run(config):
             batch=json.loads(destination.read_text(encoding='utf-8-sig'))
             staged=box.stage(batch)
             def send(record):
-                request=Request(PROJECT+'/rest/v1/rpc/sales_ingest_outlook',data=json.dumps({'p_data':envelope(record)},ensure_ascii=False).encode(),
-                    headers={'apikey':config['key'],'Authorization':config['authorization'],'Content-Type':'application/json'})
-                try:
-                    with urlopen(request,timeout=15) as response:return json.load(response)
-                except HTTPError as e:raise DeliveryError(e.code) from None
-                except URLError:raise OSError('Network unavailable') from None
+                return rpc('sales_ingest_outlook',{'p_data':envelope(record)})
             delivered=box.flush(batch['scope_key'],send,limit=5000)
+        elif config.get('mode')=='review-sync':
+            notes=Path(__file__).resolve().parent.parent/'notes'
+            info=json.loads((notes/'outlook-today-review-location.json').read_text(encoding='utf-8-sig'))
+            today=Path(info['capture_path']).resolve()
+            if not today.is_relative_to(ROOT) or today.suffix!='.json':raise ValueError('Invalid review location')
+            reviewed=json.loads(today.read_text(encoding='utf-8-sig'))
+            if reviewed['scope_key']!=batch['scope_key'] or any(m['direction']!='received' for m in reviewed['records']):raise ValueError('Review scope differs')
+            settings=json.loads((notes/'outlook-review-expanded-settings.json').read_text(encoding='utf-8-sig'))
+            from outlook_review_sync import sync_review
+            synced=sync_review(box,reviewed,settings,config['owner'],rpc)
+            staged,delivered,review_sync=synced['staged'],synced['delivery'],synced['review_sync']
         else:staged=delivered=None
         state=box.status(batch['scope_key'])
         counts=box.connection.execute("SELECT count(*),sum(CASE WHEN json_extract(payload,'$.body') IS NOT NULL AND length(json_extract(payload,'$.body'))>100000 THEN 1 ELSE 0 END),sum(CASE WHEN receipt IS NOT NULL THEN 1 ELSE 0 END) FROM mail_outbox WHERE scope_key=?",(batch['scope_key'],)).fetchone()
-        return dict(state,total=counts[0],held=counts[1] or 0,receipted=counts[2] or 0,staged=staged,delivery=delivered)
+        return dict(state,total=counts[0],held=counts[1] or 0,receipted=counts[2] or 0,staged=staged,delivery=delivered,approved_period=approved_period,**({'review_sync':review_sync} if review_sync is not None else {}))
     finally:box.close()
 
 if __name__=='__main__':

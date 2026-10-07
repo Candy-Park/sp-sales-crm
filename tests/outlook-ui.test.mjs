@@ -8,6 +8,7 @@ class Node{
  replaceChildren(...nodes){this.children=nodes;this.textContent='';}
 }
 const ids=['outlook-message','outlook-status','outlook-start','outlook-list','outlook-prev','outlook-next','outlook-inquiry','outlook-inquiry-prev','outlook-inquiry-next','outlook-review','outlook-subject','outlook-meta','outlook-body','outlook-link-form','outlook-linked-open','outlook-new-title','outlook-customer','outlook-customer-name','nav-outlook','outlook-reload','outlook-link-save','outlook-link-mode','detail-mails','outlook-filter','outlook-triage','outlook-triage-note'];
+ids.push('mobile-outlook','outlook-review-sync','outlook-category-filter','outlook-classification-filter','outlook-proposal','outlook-label','outlook-role','outlook-category','outlook-classify','outlook-classification-section');
 function fixture(){const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));return {nodes,document:{getElementById:id=>nodes[id],createElement:tag=>new Node(tag)}};}
 const mail=(id,body='SYNTHETIC <script>原文 😀')=>({id,state:'pending',excluded:false,triage_revision:1,subject:id,occurred_at:'2026-10-06T12:00:00Z',direction:'received',original:{body,sender:'synthetic@example.test',recipients:'synthetic@example.test',attachments:[]}});
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
@@ -60,4 +61,21 @@ test('switching the mail filter during linking never reopens the previous origin
 test('filter change during post-link requery discards its original and navigation',async()=>{
  const f=fixture(),old=globalThis.document;globalThis.document=f.document;
  try{let resolve,reads=0,opened=false;initOutlook({api:async(path,method)=>{if(method)return {result:'SYNTHETIC'};if(path==='/api/outlook/A'){if(++reads===1)return {mail:mail('A')};return new Promise(r=>resolve=r);}return base(path);},message:(id,text)=>f.nodes[id].textContent=text,show(){},open:async()=>{opened=true;}});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();f.nodes['outlook-link-mode'].value='existing';const pending=f.nodes['outlook-link-form'].listeners.submit({preventDefault(){}});await flush();f.nodes['outlook-filter'].value='excluded';f.nodes['outlook-filter'].listeners.change();resolve({mail:{...mail('A'),state:'linked'}});await pending;assert.equal(f.nodes['outlook-body'].textContent,'');assert.equal(opened,false);}finally{globalThis.document=old;}
+});
+
+
+test('classification retries keep identity, preserve inputs, and never exclude or link',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{const writes=[];setup(f,async(path,method,body)=>{if(method){writes.push({path,body:structuredClone(body)});throw Error('Uncertain');}return path==='/api/outlook/A'?{mail:{...mail('A'),classification_revision:0,proposal:{role:'외부·관계 미확인',category:'스팸 의심·확인 필요',confidence:'낮음',evidence:['SYNTHETIC evidence']}}}:base(path);});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();f.nodes['outlook-role'].value='미확인';f.nodes['outlook-category'].value='스팸';await f.nodes['outlook-classify'].listeners.click();await f.nodes['outlook-classify'].listeners.click();assert.equal(writes.length,2);assert.deepEqual(writes[0],writes[1]);assert.equal(writes[0].path,'/api/outlook/A/classification');assert.equal(writes[0].body.revision,0);assert.equal(f.nodes['outlook-category'].value,'스팸');assert.equal(f.nodes['outlook-body'].textContent,mail('A').original.body);}finally{globalThis.document=old;}
+});
+
+test('category filter and logout discard delayed classification, no private UI restoration',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{let resolve;const paths=[];const out=setup(f,async(path,method)=>{paths.push(path);if(method)return new Promise(r=>resolve=r);return path==='/api/outlook/A'?{mail:{...mail('A'),classification_revision:0}}:base(path);});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();f.nodes['outlook-role'].value='미확인';f.nodes['outlook-category'].value='스팸';const pending=f.nodes['outlook-classify'].listeners.click();f.nodes['outlook-category-filter'].value='HQ 업무';f.nodes['outlook-category-filter'].listeners.change();await flush();assert.ok(paths.some(p=>decodeURIComponent(p).includes('category=HQ 업무')));out.reset();resolve({result:{revision:1}});await pending;assert.equal(f.nodes['outlook-body'].textContent,'');assert.equal(f.nodes['outlook-label'].textContent,'');assert.equal(f.nodes['outlook-review'].hidden,true);}finally{globalThis.document=old;}
+});
+
+
+test('narrow-screen Outlook menu opens the same owner-scoped read-only list',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{const paths=[];setup(f,async(path,method)=>{assert.equal(method,undefined);paths.push(path);return base(path);});f.nodes['mobile-outlook'].listeners.click();await flush();assert.ok(paths.includes('/api/outlook/local'));assert.ok(paths.includes('/api/outlook?offset=0&view=active'));assert.equal(f.nodes['outlook-list'].children.length,2);}finally{globalThis.document=old;}
 });

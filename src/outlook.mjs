@@ -1,7 +1,13 @@
 import {id,writeInput} from './write-input.mjs';
 const hash=/^[0-9a-f]{64}$/;
+export const classificationRoles=['고객사','HQ','시스템','업무 시스템','외부 협력사','외부','미확인'];
+export const classificationCategories=['고객 업무','HQ 업무','외부 협력 업무','보안 알림','업무 알림','뉴스레터','광고','스팸','판단 보류'];
 export function outlookInput(operation,data){
   if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('수집 입력을 확인해주세요.');
+  if(operation==='outlook-classify'){
+    if(Object.keys(data).sort().join(',')!=='category,id,revision,role'||!classificationRoles.includes(data.role)||!classificationCategories.includes(data.category)||!Number.isInteger(data.revision)||data.revision<0||data.revision>2147483646)throw new Error('분류와 검토 버전을 확인해주세요.');
+    id(data.id);return {id:data.id,revision:data.revision,role:data.role,category:data.category};
+  }
   if(operation==='outlook-triage'){
     if(Object.keys(data).sort().join(',')!=='excluded,revision'||typeof data.excluded!=='boolean'||!Number.isInteger(data.revision)||data.revision<1||data.revision>2147483646)throw new Error('업무 제외·복원 입력을 확인해주세요.');
     return {excluded:data.excluded,revision:data.revision};

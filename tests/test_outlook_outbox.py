@@ -15,6 +15,19 @@ def batch(*records):
         start='2026-09-07T00:00:00+09:00',end='2026-10-07T00:00:00+09:00',records=list(records))
 
 class OutboxTests(unittest.TestCase):
+    def test_incremental_today_window_preserves_old_originals_and_receipts(self):
+        self.queue.stage(batch(mail())); first=self.queue.pending(SCOPE)[0]
+        self.queue.acknowledge(SCOPE,first['source_key'],{k:first[k] for k in ['id','source_key','payload_hash']})
+        today=mail('d'*64);today['occurred_at']='2026-10-07T01:00:00Z'
+        capture=batch(today)|{'start':'2026-10-07T00:00:00+09:00','end':'2026-10-07T12:00:00+09:00'}
+        self.queue.stage(capture)
+        self.assertEqual(self.queue.status(SCOPE)['window_start'],'2026-09-07T00:00:00+09:00')
+        self.assertEqual(self.queue.status(SCOPE)['window_end'],'2026-10-07T12:00:00+09:00')
+        self.queue.stage(batch(mail()))
+        self.assertEqual(self.queue.status(SCOPE)['window_end'],'2026-10-07T12:00:00+09:00')
+        self.assertEqual(len(self.queue.pending(SCOPE)),1)
+        saved=self.queue.connection.execute('select id,receipt from mail_outbox where source_key=?',(first['source_key'],)).fetchone()
+        self.assertEqual(saved[0],first['id']);self.assertIsNotNone(saved[1])
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.path=Path(self.temp.name)/'outbox.sqlite'

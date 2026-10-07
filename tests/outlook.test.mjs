@@ -65,3 +65,35 @@ test('authenticated exclusion uses invoker RPC and stale revisions are conflicts
  assert.equal((await handleApi(request('/api/outlook/'+mid+'/triage','POST',{excluded:true,revision:1}),env,upstream(true,'40001').fetch)).status,409);
  assert.equal((await handleApi(request('/api/outlook/'+mid+'/triage','POST',{excluded:true,revision:1},null),env,upstream().fetch)).status,401);
 });
+
+test('classification requires an explicit category, role, stable request ID and revision',()=>{
+ const value={id:mid,revision:0,role:'HQ',category:'HQ 업무'};
+ assert.deepEqual(outlookInput('outlook-classify',value),value);
+ for(const bad of [{...value,owner_id:uid},{...value,revision:-1},{...value,category:'auto'},{...value,role:'forged'},{...value,id:'bad'}])assert.throws(()=>outlookInput('outlook-classify',bad));
+});
+test('classification authenticates before invoker RPC, stale decisions conflict',async()=>{
+ const body={id:mid,revision:0,role:'HQ',category:'HQ 업무'},up=upstream();
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/classification','POST',body),env,up.fetch)).status,200);
+ assert.equal(up.calls.at(-1).u.pathname,'/rest/v1/rpc/sales_classify_outlook');
+ assert.deepEqual(JSON.parse(up.calls.at(-1).init.body),{p_id:mid,p_data:body});
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/classification','POST',body),env,upstream(true,'40001').fetch)).status,409);
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/classification','POST',body,null),env,upstream().fetch)).status,401);
+});
+test('classification list uses invoker view and filters owner before paging; no original body',async()=>{
+ const up=upstream();await handleApi(request('/api/outlook?category=HQ%20업무&classification=proposed'),env,up.fetch);
+ const u=up.calls.at(-1).u;
+ assert.equal(u.pathname,'/rest/v1/sales_outlook_classified');
+ assert.equal(u.searchParams.get('category_group'),'eq.HQ 업무');
+ assert.equal(u.searchParams.get('classification_state'),'eq.proposed');
+ assert.equal(u.searchParams.get('owner_id'),'eq.'+uid);
+ assert.equal(u.searchParams.get('select').includes('original'),false);
+});
+test('review sync requires verified allowlisted owner and only passes explicit mode',async()=>{
+ let args,calls=0;const config={...env,localOutlook:async(...values)=>{calls++;args=values;return {running:true};}};
+ assert.equal((await handleApi(request('/api/outlook/review-sync','POST',{},null),config,upstream().fetch)).status,401);
+ assert.equal((await handleApi(request('/api/outlook/review-sync','POST',{}),config,upstream(false).fetch)).status,403);
+ assert.equal(calls,0);
+ assert.equal((await handleApi(request('/api/outlook/review-sync','POST',{}),config,upstream().fetch)).status,200);
+ assert.deepEqual(args,['POST',uid,'Bearer synthetic','review-sync']);
+ assert.equal((await handleApi(request('/api/outlook/review-sync'),config,upstream().fetch)).status,405);
+});

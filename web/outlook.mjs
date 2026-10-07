@@ -1,30 +1,39 @@
+import {classificationRoles,classificationCategories} from '../src/outlook.mjs';
 const el=id=>document.getElementById(id);
 const seoul=value=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'short',timeStyle:'short'}).format(new Date(value));
 export function initOutlook({api,message,show,open}){
   let epoch=0,offset=0,view='active',selected=null,registrationId=crypto.randomUUID(),timer=null,inquiryOffset=0,reviewSequence=0,listSequence=0;
   const option=(value,label)=>{const node=document.createElement('option');node.value=value;node.textContent=label;return node;};
+  let category='all',classification='all',labelRequest=null;
+  el('outlook-category-filter').replaceChildren(option('all','전체 업무 분류'),option('미분류','미분류'),...classificationCategories.map(v=>option(v,v)));
+  el('outlook-role').replaceChildren(option('','상대 관계 선택'),...classificationRoles.map(v=>option(v,v)));
+  el('outlook-category').replaceChildren(option('','업무 분류 선택'),...classificationCategories.map(v=>option(v,v)));
+  function classificationControls(disabled){for(const id of ['outlook-role','outlook-category','outlook-classify'])el(id).disabled=disabled;}
   const report=error=>message('outlook-message',error.message,true);
-  function clearReview(){reviewSequence++;selected=null;el('outlook-review').hidden=true;for(const name of ['body','meta','subject','triage-note'])el('outlook-'+name).textContent='';el('outlook-link-form').hidden=true;el('outlook-linked-open').hidden=true;el('outlook-triage').hidden=true;}
+  function clearReview(){reviewSequence++;selected=null;labelRequest=null;el('outlook-review').hidden=true;for(const name of ['body','meta','subject','triage-note','proposal','label'])el('outlook-'+name).textContent='';el('outlook-role').value='';el('outlook-category').value='';classificationControls(false);el('outlook-link-form').hidden=true;el('outlook-linked-open').hidden=true;el('outlook-triage').hidden=true;}
   async function status(){
     clearTimeout(timer);
     const active=epoch;
     try{
       const data=await api('/api/outlook/local');if(active!==epoch)return;
       const period=data.window_start?`${seoul(data.window_start)} 이상 ~ ${seoul(data.window_end)} 미만 (서울)`:'승인된 최근 1개월 스냅샷';
-      el('outlook-status').textContent=`${period} · 로컬 ${data.total??'—'}건 · 서버 영수증 ${data.receipted??'—'}건 · 미전송 ${data.pending??'—'}건 · 긴 본문 보류 ${data.held??'—'}건. ${data.running?'수집·전송 중':data.error||data.last_error?'오류: '+(data.error||data.last_error):'대기'}. 마지막 서버 성공: ${data.last_success_at?seoul(data.last_success_at):'없음'}`;
+      const sync=data.review_sync,approved=data.approved_period;
+      el('outlook-status').textContent=`로컬 보관 범위: ${period} · 로컬 ${data.total??'—'}건 · 서버 영수증 ${data.receipted??'—'}건 · 미전송 ${data.pending??'—'}건 · 긴 본문 보류 ${data.held??'—'}건. ${data.running?'수집·전송 중':data.error||data.last_error||sync?.error?'오류: '+(data.error||data.last_error||sync.error):'대기'}. 마지막 메일 전송 성공: ${data.last_success_at?seoul(data.last_success_at):'없음'}${approved?` · 직접 재수집 대상: ${seoul(approved.start)}~${seoul(approved.end)}`:''}${sync?` · 제안 연결 ${sync.proposals}건, 확인 사례 ${sync.seeded_labels}건, 기존 확정 충돌로 건너뜀 ${sync.preserved_labels}건`:''}`;
       el('outlook-start').disabled=Boolean(data.running);
+      el('outlook-review-sync').disabled=Boolean(data.running);
       if(data.running)timer=setTimeout(status,2500);
     }catch(error){if(active===epoch)report(error);}
   }
   async function list(){
     const active=epoch,sequence=++listSequence;
     try{
-      const data=await api('/api/outlook?offset='+offset+'&view='+view);if(active!==epoch||sequence!==listSequence)return;
+      const data=await api('/api/outlook?offset='+offset+'&view='+view+(category==='all'?'':'&category='+encodeURIComponent(category))+(classification==='all'?'':'&classification='+classification));if(active!==epoch||sequence!==listSequence)return;
       el('outlook-list').replaceChildren();
       for(const mail of data.mails){
         const li=document.createElement('li'),button=document.createElement('button'),hint=document.createElement('small');
         button.textContent=mail.subject||'(제목 없음)';button.addEventListener('click',()=>review(mail.id));
         hint.textContent=`${mail.direction==='sent'?'보낸':'받은'} · ${seoul(mail.occurred_at)} · ${mail.excluded?'업무 제외 · ':''}${mail.state==='held'?'보류: 긴 본문 로컬 원문 보존':mail.state==='linked'?'문의 연결됨':'검토 대기'}`;
+        hint.textContent+=mail.label?` · 사용자 확정: ${mail.label.role} / ${mail.label.category}`:mail.proposal?` · 제안·미확정: ${mail.proposal.role} / ${mail.proposal.category}`:' · 분류 없음';
         li.append(button,hint);el('outlook-list').append(li);
       }
       if(!data.mails.length)el('outlook-list').textContent='이 페이지에 수집 메일이 없습니다.';
@@ -41,7 +50,12 @@ export function initOutlook({api,message,show,open}){
     try{
       const {mail}=await api('/api/outlook/'+id);if(active!==epoch||sequence!==reviewSequence)return;
       selected=mail;registrationId=crypto.randomUUID();
+      const p=mail.proposal,l=mail.label;
+      el('outlook-proposal').textContent=p?`분류 제안·미확정: ${p.role} / ${p.category} · 신호 ${p.confidence}${p.customer_ref?' · 참조 고객: '+p.customer_ref:''}. ${(p.evidence??[]).join(' · ')}`:'분류 제안이 없습니다.';
+      el('outlook-label').textContent=l?`사용자 확정: ${l.role} / ${l.category} · 검토 버전 ${l.revision}`:'사용자가 확정한 분류가 없습니다.';
+      el('outlook-role').value=l?.role??'';el('outlook-category').value=l?.category??'';
       el('outlook-review').hidden=false;el('outlook-subject').textContent=mail.subject||'(제목 없음)';
+      el('outlook-review').scrollIntoView?.({block:'start',behavior:'smooth'});
       el('outlook-meta').textContent=`${mail.original.sender} → ${mail.original.recipients} · ${seoul(mail.occurred_at)} · 첨부 메타데이터 ${mail.original.attachments.length}개`;
       el('outlook-body').textContent=mail.state==='held'?`본문 ${mail.body_length.toLocaleString()}자. 본문 전체는 이 PC의 승인된 Outlook sources/outbox.sqlite에 보존되어 있으며 서버로 보내지 않았습니다. 문의 연결은 보류합니다.`:mail.original.body;
       el('outlook-link-form').hidden=mail.state!=='pending'||mail.excluded;el('outlook-linked-open').hidden=mail.state!=='linked';
@@ -58,12 +72,35 @@ export function initOutlook({api,message,show,open}){
     }catch(error){if(active===epoch)report(error);}
   }
   el('nav-outlook').addEventListener('click',()=>{show('outlook');status();list();});
+  el('mobile-outlook').addEventListener('click',()=>{show('outlook');status();list();});
   el('outlook-start').addEventListener('click',async()=>{
     const active=epoch;el('outlook-start').disabled=true;
     try{await api('/api/outlook/local','POST',{});if(active===epoch){message('outlook-message','직접 시작한 수집 작업입니다. 완료 후 목록을 재조회하세요.');await status();}}
     catch(error){if(active===epoch){report(error);el('outlook-start').disabled=false;}}
   });
   el('outlook-reload').addEventListener('click',()=>{status();list();});
+  el('outlook-review-sync').addEventListener('click',async()=>{
+    const active=epoch;el('outlook-review-sync').disabled=true;
+    try{await api('/api/outlook/review-sync','POST',{});if(active===epoch){message('outlook-message','오늘 검토본과 분류 제안을 연결합니다. 완료 후 목록을 재조회하세요. 사용자 확정과 원문은 보존합니다.');await status();}}
+    catch(error){if(active===epoch){report(error);el('outlook-review-sync').disabled=false;}}
+  });
+  for(const [id,set] of [['outlook-category-filter',v=>category=v],['outlook-classification-filter',v=>classification=v]])el(id).addEventListener('change',()=>{set(el(id).value);offset=0;clearReview();list();});
+  el('outlook-classify').addEventListener('click',async()=>{
+    const mail=selected,active=epoch,sequence=reviewSequence;if(!mail||el('outlook-classify').disabled)return;
+    const role=el('outlook-role').value,category=el('outlook-category').value;
+    if(!classificationRoles.includes(role)||!classificationCategories.includes(category)){report(new Error('상대 관계와 검토한 업무 분류를 선택해주세요.'));return;}
+    const revision=mail.classification_revision??0;
+    if(!labelRequest||labelRequest.role!==role||labelRequest.category!==category||labelRequest.revision!==revision)labelRequest={id:crypto.randomUUID(),revision,role,category};
+    classificationControls(true);
+    try{
+      await api('/api/outlook/'+mail.id+'/classification','POST',labelRequest);
+      if(active!==epoch||sequence!==reviewSequence||selected?.id!==mail.id)return;
+      await review(mail.id);
+      if(active!==epoch||sequence+1!==reviewSequence||selected?.id!==mail.id)return;
+      await list();if(active===epoch&&sequence+1===reviewSequence)message('outlook-message','분류를 저장하고 최신 확정을 재조회했습니다. 문의 연결·업무 제외는 그대로입니다.');
+    }catch(error){if(active===epoch&&sequence===reviewSequence)report(error);}
+    finally{if(active===epoch&&sequence===reviewSequence)classificationControls(false);}
+  });
   el('outlook-filter').addEventListener('change',()=>{view=el('outlook-filter').value;offset=0;clearReview();list();});
   el('outlook-triage').addEventListener('click',async()=>{
     const mail=selected,active=epoch,sequence=reviewSequence;if(!mail||mail.state==='linked')return;
@@ -100,5 +137,5 @@ export function initOutlook({api,message,show,open}){
       if(!data.mails.length)el('detail-mails').textContent='연결한 Outlook 메일이 없습니다.';
       for(const [label,target] of [['이전 연결 메일',page-50],['다음 연결 메일',page+50]])if(target>=0&&(target<page||data.hasMore)){const b=document.createElement('button');b.textContent=label;b.addEventListener('click',()=>this.bind(id,target));el('detail-mails').append(b);}
     }catch(error){if(active===epoch)el('detail-mails').textContent=error.message;}
-  },reset(){epoch++;listSequence++;clearTimeout(timer);clearReview();offset=0;view='active';el('outlook-filter').value=view;el('detail-mails').replaceChildren();el('outlook-list').replaceChildren();el('outlook-status').textContent='';message('outlook-message','');}};
+  },reset(){epoch++;listSequence++;clearTimeout(timer);clearReview();offset=0;view='active';category=classification='all';el('outlook-category-filter').value='all';el('outlook-classification-filter').value='all';el('outlook-review-sync').disabled=false;el('outlook-filter').value=view;el('detail-mails').replaceChildren();el('outlook-list').replaceChildren();el('outlook-status').textContent='';message('outlook-message','');}};
 }
