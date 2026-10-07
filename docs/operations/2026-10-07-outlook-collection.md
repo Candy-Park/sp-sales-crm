@@ -189,3 +189,18 @@ D outputs의 2026-10-07-outlook-live-link- 접두어에 before.txt, after.txt, r
 산출물은 D outputs/2026-10-07-today-mail-review.json/.md(초안), today-mail-review-confirmed.json/.md(사용자 확인 2건 반영), today-review-preservation.json 및 today-review-python-tests.txt/node-tests.txt이며 모두 2026-10-07 접두어다. 사용자 열람 보고서에는 제목·발신 도메인·분류/근거만 포함하고 원문·연락처·인증정보는 포함하지 않는다. 보고서와 실제 메일별 정답은 Git에 넣지 않고 도구·합성 검사·필요 문서만 선별 로컬 커밋한다. 원격·push·배포 없음. 소스/문서는 `cfe0337` 및 위 사본과 파일별 비교해 복원할 수 있다. 원문과 확정 사례를 삭제하거나 운영 큐/DB를 되돌리지 않는다.
 
 다음은 사용자 수정·확정 사례를 분류별로 늘려 독립 평가 표본을 확보하는 것이다. 실제 모델·비용 결정, 본문 의미 검토 품질 평가, CRM 분류 화면 연결은 별도 후속 범위다. 기존 두 실제 세션 경합·Supabase 전체 DB 복원·1주 실사용 미완료 사항은 유지한다. 본문 100,000자 초과 보류 4건, 기존 PC CRM/sp-crm, 제품·회신 SQL 및 동결 산출물을 유지했다.
+
+## 후속 분류 후보 확대·오분류 방지 — 2026-10-07
+
+사용자가 다음 스텝을 요청했다. 최초 CRM 화면 활용을 검토했지만 확정 학습 자료가 스팸 2건뿐이고 회사 자동 알림을 HQ 직접 답변으로 오인할 위험을 확인하여, 화면 연결 전 기존 승인 수집본으로 기준 검증을 먼저 진행했다. 시작 `4049a6e`, 브랜치 `codex/login-access`, 원격 없음. 변경 전 도구·검사·관련 문서 사본은 D outputs/2026-10-07-learning-review-before/에 보관했다.
+
+1. `tools/outlook_review.py`: `--outbox`는 SQLite mode=ro·읽기 트랜잭션으로 승인 사서함 범위의 저장 원문/해시/기간을 검사하고 받은 메일만 메모리에서 합친다. 오늘 캡처와 source_key 중복은 같은 원문일 때만 인정하고 다른 원문이면 실패한다. 원본 큐를 stage/update하지 않고 보낸 메일을 학습 표본으로 섞지 않는다. 운영 큐 받은 291건과 오늘 5건의 중복 1을 제외해 295건을 제안했다. 캡처 실행 시점·승인 시간 조건은 직전 기록과 같고 신규 폴더/원문 수집으로 확대하지 않았다.
+2. 발신 도메인 보완: ignored notes/outlook-review-domains.ps1은 동일 승인 사서함·받은 편지함·기간의 메시지 식별자를 확인하고 SMTP 주소에서 도메인만 추출했다. 내부 주소 형식은 Outlook Sender.GetExchangeUser/DistributionList의 PrimarySmtpAddress를 읽기 전용으로 확인한다. 전체 주소·본문·연락처는 파일/로그에 출력하지 않는다. 실제 295건 확인, non-SMTP 82 중 해결 81·미해결 1. 도메인 보완 자료는 D sources/outlook/review-sender-domains-20261007.json에 보존하고 범위·개인 설정은 ignored notes/outlook-review-domain-scope.json 및 outlook-review-expanded-settings.json에 둔다. 기존 source_key·original.sender·payload_hash를 변경하지 않았다. 해결 실패는 미확인으로 남기며 임의 추측하지 않는다.
+3. 구분 보완: 정확한 회사 도메인에 대해 자동 출하/주문/ECN/승인 지연/주간 보고 제목과 직접 HQ 업무를 나눈다. 경비 상태 변경은 업무 시스템 알림, 특정 매체 정기 소식은 뉴스레터 후보로 제안한다. 고객 태그는 대괄호/괄호의 정확한 별칭만 인정하며 고객 참조와 발신 HQ 역할을 분리한다. 도메인/태그만으로 고객 업무를 확정하지 않고 후보로 둔다. Outlook 인용 경계는 From 외에 Sent/Date와 To 헤더가 함께 있거나 명시적 이전 메시지 경계가 있는 경우에만 자른다. 격리 목록의 단순 From 표시를 답장 인용으로 오인하지 않는다. 별도 사용자 role 수정도 고유 메일별로 검증·보존하며 제목에 있는 전체 메일 주소는 보고서에서 생략한다.
+4. TDD: superpowers:test-driven-development 스킬로 실제 오분류를 합성 입력에서 먼저 재현했다. red 기록은 learning-review-red.txt, merge-red.txt, role-red.txt, feedback-red.txt(모두 2026-10-07 접두어). 자동 알림을 직접 HQ 업무로 분류, 태그만으로 고객 확정, 격리 From 오인, 미지원 내부 도메인/readonly 병합, HQ와 제목 고객 참조 혼동, 승인 지연 알림/직접 답장 구분, 사용자 역할 수정/제목 주소 노출, 괄호 태그를 순차 수정했다. 기존 인용문 검사는 실제 헤더가 있는 합성 자료로 보완했다. 최종 전체 Python 59/59·Node 81/81와 git diff --check 통과. API·프런트엔드 변경이 없어 빌드를 반복하지 않았다.
+5. 실제 결과: 고객 업무 후보 23·HQ 업무 후보 72·업무 알림 제안 61·보안 알림 제안 25·뉴스레터 후보 22·사용자 확정 스팸 2·판단 보류 90=295. 295건 모두 정답·전체 의미 검토 완료로 보고하지 않는다. 도메인을 확인한 것도 발신 인증 검증이나 HQ 소속 확정과 구분한다. 대표 HQ 답변과 전시회 재예약 사례의 관계 확인을 요청했으며 응답 전 확정하지 않는다. 현재 스팸 2건에만 편중된 정답으로 고객/HQ 정확도를 계산하지 않았다. 실제 AI 모델 훈련/호출 0이다.
+6. 보존 대조: SQLite integrity=ok, 운영 원문 338·영수증 338·미전송 0·held 4·받은 291/보낸 47. 원문/영수증/소유자 바인딩 집계 SHA-256이 기존 검증 백업과 동일하다. 상태·기존 CRM 수집 기간을 수정하지 않았다. 추가 서버 업로드·문의 생성/연결·업무 제외·메일 발송은 각각 0이다. 기존 로그인 Chrome을 새로고침하거나 인증정보를 읽어내지 않았다.
+
+산출물은 D outputs/2026-10-07-learning-mail-review.json/.md, learning-mail-review-initial.json, learning-review-preservation.json, learning-review-python-tests.txt/node-tests.txt와 위 red 기록이다. 개인 메일별 제안/정답·도메인 보완 및 임시 조회 스크립트는 Git에 넣지 않는다. 도구·합성 검사·검토 기록·개발 보고서·이 작업 기록만 선별 로컬 커밋한다. 원격·push·배포 없음. 소스/문서는 `4049a6e` 또는 위 사본과 파일별 비교해 복원하고 현재 운영 데이터·원문·정답 자료를 덮거나 삭제하지 않는다.
+
+남은 작업: 분류별 사용자 확정/수정과 독립 평가 표본, 실제 의미 검토 방식·AI 서비스/모델/비용 결정, CRM 분류 화면과 오늘 신규 4건의 서버 연결. 두 실제 세션 경합·Supabase 전체 DB 복원·1주 실사용은 별도 미완료다. 새 Supabase DDL이나 기존 제품/회신 SQL을 실행하지 않았고 기존 PC CRM/sp-crm과 동결 산출물·활성 경로를 유지했다.
