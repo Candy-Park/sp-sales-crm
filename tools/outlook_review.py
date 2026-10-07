@@ -22,13 +22,13 @@ CONFIRMED_ROLES = {'고객사', 'HQ', '업무 시스템', '시스템', '외부 �
 
 def newest_text(body):
     # A quarantine table can contain From/Subject labels without being a reply.
-    boundary = re.search(r'(?im)^\s*(?:-----Original Message-----|On .{5,180}wrote:)', body)
+    boundary = re.search(r'(?im)^\s*(?:-{2,}\s*(?:Original Message|原始邮件|原始郵件|原始訊息)\s*-{2,}|On .{5,180}wrote:)', body)
     candidates = [boundary.start()] if boundary else []
-    for header in re.finditer(r'(?im)^\s*(?:From:|보낸\s*사람\s*:)', body):
-        block = body[header.end():header.end()+1200]
-        if re.search(r'(?im)^\s*(?:Sent:|Date:|보낸\s*날짜\s*:|보낸\s*시간\s*:)', block) and re.search(r'(?im)^\s*(?:To:|받는\s*사람\s*:)', block):
+    for header in re.finditer(r'(?im)^\s*(?:From|보낸\s*사람|발신|发件人|寄件者|寄件人|發件人|發件者)\s*[:：]', body):
+        block = body[header.end():header.end()+1500]
+        if re.search(r'(?im)^\s*(?:Sent|Date|날짜|보낸\s*날짜|보낸\s*시간|发送时间|傳送時間|传送时间|寄件日期|日期|時間|时间)\s*[:：]', block) and re.search(r'(?im)^\s*(?:To|받는\s*사람|수신|Subject|제목|收件人|收件者|主题|主旨)\s*[:：]', block):
             candidates.append(header.start())
-    return body[:min(candidates)] if candidates else body
+    return body[:min(candidates)].rstrip() if candidates else body
 
 
 def domain_of(sender):

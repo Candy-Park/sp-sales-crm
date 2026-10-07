@@ -12,6 +12,7 @@ export async function handleApi(request, env, fetcher=fetch) {
   const outlookLink=/^\/api\/outlook\/([0-9a-f-]+)\/link$/i.exec(path);
   const outlookTriage=/^\/api\/outlook\/([0-9a-f-]+)\/triage$/i.exec(path);
   const outlookClassify=/^\/api\/outlook\/([0-9a-f-]+)\/classification$/i.exec(path);
+  const outlookWorkflow=/^\/api\/outlook\/([0-9a-f-]+)\/workflow$/i.exec(path);
   const outlookDetail=/^\/api\/outlook\/([0-9a-f-]+)$/i.exec(path);
   const outlookLocal=path==='/api/outlook/local';
   const outlookSync=path==='/api/outlook/review-sync';
@@ -26,8 +27,8 @@ export async function handleApi(request, env, fetcher=fetch) {
   const review=/^\/api\/questions\/([0-9a-f-]+)$/i.exec(path);
   const methods=outlookLink||outlookTriage||outlookClassify||outlookSync?['POST']:outlookLocal||path==='/api/outlook'?['GET','POST']:productLinks?['GET','POST']:detail?['GET','PATCH']:addAction||close||messages||questions?['POST']:editAction||review||path==='/api/parties'?['PATCH']:path==='/api/inquiries'?['GET','POST']:['GET'];
   if(!methods.includes(request.method)) return reply(405,{error:'지원하지 않는 요청입니다.'});
-  if(!['/api/me','/api/dashboard','/api/lookups','/api/inquiries','/api/parties','/api/products','/api/outlook'].includes(path)&&!detail&&!addAction&&!close&&!editAction&&!productLinks&&!communication&&!messages&&!questions&&!review&&!outlookLink&&!outlookTriage&&!outlookClassify&&!outlookDetail&&!outlookLocal&&!outlookSync) return reply(404,{error:'요청한 기능이 없습니다.'});
-  for(const match of [detail,addAction,close,editAction,productLinks,communication,messages,questions,review,outlookLink,outlookTriage,outlookClassify,outlookDetail])if(match){try{id(match[1]);}catch{return reply(400,{error:'항목 식별자를 확인해주세요.'});}}
+  if(!['/api/me','/api/dashboard','/api/lookups','/api/inquiries','/api/parties','/api/products','/api/outlook'].includes(path)&&!detail&&!addAction&&!close&&!editAction&&!productLinks&&!communication&&!messages&&!questions&&!review&&!outlookLink&&!outlookTriage&&!outlookClassify&&!outlookDetail&&!outlookLocal&&!outlookSync&&!outlookWorkflow) return reply(404,{error:'요청한 기능이 없습니다.'});
+  for(const match of [detail,addAction,close,editAction,productLinks,communication,messages,questions,review,outlookLink,outlookTriage,outlookClassify,outlookDetail,outlookWorkflow])if(match){try{id(match[1]);}catch{return reply(400,{error:'항목 식별자를 확인해주세요.'});}}
   if(env.SUPABASE_URL!==projectUrl || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(env.SUPABASE_PUBLISHABLE_KEY ?? ''))
     return reply(503,{error:'CRM 연결 설정을 확인해야 합니다.'});
   const authorization=request.headers.get('authorization') ?? '';
@@ -62,6 +63,14 @@ export async function handleApi(request, env, fetcher=fetch) {
       const data=await response.json();if(!Array.isArray(data)) throw new Error('invalid response');
       return data;
     };
+    if(outlookWorkflow){
+      const mails=await read('sales_outlook_classified','id,scope_key,source_key,payload_hash,state,excluded,category_group',{id:'eq.'+outlookWorkflow[1],limit:'1'});
+      if(!mails.length)return reply(404,{error:'메일을 찾을 수 없습니다.'});
+      if(!env.localWorkflow)return reply(503,{error:'이 PC의 원문 검토 연결이 필요합니다.'});
+      const mail=mails[0],identity=Object.fromEntries(['id','scope_key','source_key','payload_hash'].map(k=>[k,mail[k]]));
+      const workflow=await env.localWorkflow(user.id,identity,mail.excluded?'업무 제외':mail.category_group??'미분류');
+      return reply(200,{workflow});
+    }
     if(request.method!=='GET'){
       let body;
       try{

@@ -10,7 +10,7 @@ export function initOutlook({api,message,show,open}){
   el('outlook-category').replaceChildren(option('','업무 분류 선택'),...classificationCategories.map(v=>option(v,v)));
   function classificationControls(disabled){for(const id of ['outlook-role','outlook-category','outlook-classify'])el(id).disabled=disabled;}
   const report=error=>message('outlook-message',error.message,true);
-  function clearReview(){reviewSequence++;selected=null;labelRequest=null;el('outlook-review').hidden=true;for(const name of ['body','meta','subject','triage-note','proposal','label'])el('outlook-'+name).textContent='';el('outlook-role').value='';el('outlook-category').value='';classificationControls(false);el('outlook-link-form').hidden=true;el('outlook-linked-open').hidden=true;el('outlook-triage').hidden=true;}
+  function clearReview(){reviewSequence++;selected=null;labelRequest=null;el('outlook-review').hidden=true;for(const name of ['body','meta','subject','triage-note','proposal','label','workflow-preview'])el('outlook-'+name).textContent='';el('outlook-workflow').disabled=false;el('outlook-role').value='';el('outlook-category').value='';classificationControls(false);el('outlook-link-form').hidden=true;el('outlook-linked-open').hidden=true;el('outlook-triage').hidden=true;}
   async function status(){
     clearTimeout(timer);
     const active=epoch;
@@ -79,6 +79,16 @@ export function initOutlook({api,message,show,open}){
     catch(error){if(active===epoch){report(error);el('outlook-start').disabled=false;}}
   });
   el('outlook-reload').addEventListener('click',()=>{status();list();});
+  el('outlook-workflow').addEventListener('click',async()=>{
+    const mail=selected,active=epoch,sequence=reviewSequence;if(!mail||el('outlook-workflow').disabled)return;
+    el('outlook-workflow').disabled=true;el('outlook-workflow-preview').textContent='업무 단계 검토 중…';
+    try{
+      const {workflow:w}=await api('/api/outlook/'+mail.id+'/workflow');
+      if(active!==epoch||sequence!==reviewSequence||selected?.id!==mail.id)return;
+      el('outlook-workflow-preview').textContent=`업무 검토 제안·미확정: ${w.work_kind} / ${w.stage}\n대기 대상: ${w.waiting_on}\n다음 할 일: ${w.next_action}\n수집 범위의 동일 대화 ${w.thread_count}건 · 이후 발송 ${w.later_sent}건 · 이후 수신 ${w.later_received}건 · 기록 비교 시각 ${seoul(w.observed_at)}\n근거: ${(w.evidence??[]).join(' · ')||'추가 검토 필요'}\n${(w.caveats??[]).join('\n')}\n검토 후 아래 문의 연결 또는 연결된 문의의 Action 등록에서 직접 저장하세요.`;
+    }catch(error){if(active===epoch&&sequence===reviewSequence){el('outlook-workflow-preview').textContent='업무 검토 결과를 확인하지 못했습니다. 원문을 유지했습니다. 다시 시도하거나 직접 검토하세요.';report(error);}}
+    finally{if(active===epoch&&sequence===reviewSequence)el('outlook-workflow').disabled=false;}
+  });
   el('outlook-review-sync').addEventListener('click',async()=>{
     const active=epoch;el('outlook-review-sync').disabled=true;
     try{await api('/api/outlook/review-sync','POST',{});if(active===epoch){message('outlook-message','오늘 검토본과 분류 제안을 연결합니다. 완료 후 목록을 재조회하세요. 사용자 확정과 원문은 보존합니다.');await status();}}

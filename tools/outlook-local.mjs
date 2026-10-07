@@ -1,11 +1,11 @@
 import {spawn} from 'node:child_process';
 let active=null;
 const states=new Map();
-function invoke(input){
+function invoke(input,script='tools/outlook_bridge.py'){
   return new Promise((resolve,reject)=>{
-    const child=spawn('python',['tools/outlook_bridge.py'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+    const child=spawn('python',['-X','utf8',script],{windowsHide:true,stdio:['pipe','pipe','pipe']});
     let output='';
-    const timer=setTimeout(()=>child.kill(),900000);
+    const timer=setTimeout(()=>child.kill(),script==='tools/outlook_workflow.py'?12000:900000);
     child.stdout.on('data',c=>{output+=c;if(output.length>10000)child.kill();});
     // Never forward child errors, credentials, mail bodies, or subprocess arguments.
     child.stderr.resume();child.on('error',()=>{clearTimeout(timer);reject(new Error('Local collector unavailable'));});
@@ -13,6 +13,7 @@ function invoke(input){
     child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify(input));
   });
 }
+export const localWorkflow=(owner,identity,category)=>invoke({owner,identity,category},'tools/outlook_workflow.py');
 export function localOutlook(config){
   return async(method,owner,authorization,mode='collect')=>{
     if(!['collect','review-sync'].includes(mode))throw new Error('Invalid collector mode');

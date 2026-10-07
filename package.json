@@ -8,6 +8,12 @@
     "build": "node tools/build.mjs",
     "dev": "node --env-file-if-exists=.env tools/dev-server.mjs"
   },
-  "dependencies": {"@supabase/supabase-js": "2.117.2", "bootstrap": "5.3.8"},
-  "devDependencies": {"esbuild": "0.28.2"}
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2",
+    "bootstrap": "5.3.8"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "esbuild": "0.28.2"
+  }
 }

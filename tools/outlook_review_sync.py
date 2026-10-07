@@ -5,7 +5,7 @@ import uuid
 from outlook_outbox import canonical, DeliveryError, RETRYABLE_STATUS
 from outlook_review import report, merge_outbox, CONFIRMED_CATEGORIES, CONFIRMED_ROLES
 
-RULE_VERSION='local-rules:d595a83'
+RULE_VERSION='local-rules:multilingual-v2'
 
 
 def request_id(owner,kind,value):

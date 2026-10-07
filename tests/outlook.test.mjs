@@ -8,6 +8,28 @@ const mail={source_key:'b'.repeat(64),identity_method:'internet_message_id',dire
 const data={id:mid,scope_key:'a'.repeat(64),source_key:mail.source_key,payload_hash:'c'.repeat(64),body_length:Array.from(mail.body).length,original_json:JSON.stringify(mail)};
 function request(path,method='GET',body,token='synthetic'){return new Request('http://127.0.0.1:4317'+path,{method,headers:{...(token?{authorization:'Bearer '+token}:{}),'content-type':'application/json'},body:method==='GET'?undefined:JSON.stringify(body)});}
 function upstream(enabled=true,code=null){const calls=[];return {calls,fetch:async(url,init)=>{const u=new URL(url);calls.push({u,init});if(u.pathname==='/auth/v1/user')return Response.json({id:uid});if(u.pathname==='/rest/v1/sales_access')return Response.json(enabled?[{user_id:uid,enabled:true}]:[]);if(u.pathname.includes('/rpc/'))return code?Response.json({code},{status:400}):Response.json({id:mid,source_key:mail.source_key,payload_hash:data.payload_hash});return Response.json([]);}};}
+
+test('workflow preview authenticates and verifies owned server receipt before any local original read',async()=>{
+ let inputs=[];const config={...env,localWorkflow:async(...args)=>{inputs.push(args);return {proposed:true,stage:'요청 후보'};}};
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/workflow','GET',undefined,null),config,upstream().fetch)).status,401);
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/workflow'),config,upstream(false).fetch)).status,403);
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/workflow'),config,upstream().fetch)).status,404);
+ assert.equal(inputs.length,0);
+ const up=upstream(),fetch=async(url,init)=>{const r=await up.fetch(url,init);return new URL(url).pathname==='/rest/v1/sales_outlook_classified'?Response.json([{id:mid,scope_key:data.scope_key,source_key:mail.source_key,payload_hash:data.payload_hash,category_group:'HQ 업무',state:'pending',excluded:false}]):r;};
+ const r=await handleApi(request('/api/outlook/'+mid+'/workflow?owner_id=forged&category=spam'),config,fetch);
+ assert.equal(r.status,200);assert.equal((await r.json()).workflow.stage,'요청 후보');
+ assert.deepEqual(inputs,[[uid,{id:mid,scope_key:data.scope_key,source_key:mail.source_key,payload_hash:data.payload_hash},'HQ 업무']]);
+ const u=up.calls.at(-1).u;assert.equal(u.searchParams.get('owner_id'),'eq.'+uid);assert.equal(u.searchParams.get('id'),'eq.'+mid);assert.equal(u.searchParams.get('select').includes('original'),false);
+ assert.equal(up.calls.some(c=>c.init.method!=='GET'),false);
+});
+
+test('workflow is read-only and unavailable or failed local verification returns error not empty success',async()=>{
+ const up=upstream(),fetch=async(url,init)=>new URL(url).pathname==='/rest/v1/sales_outlook_classified'?Response.json([{id:mid,state:'pending'}]):up.fetch(url,init);
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/workflow','POST',{}),env,fetch)).status,405);
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/workflow'),env,fetch)).status,503);
+ const r=await handleApi(request('/api/outlook/'+mid+'/workflow'),{...env,localWorkflow:async()=>{throw new Error('PRIVATE_SENTINEL');}},fetch);
+ assert.equal(r.status,503);assert.doesNotMatch(await r.text(),/PRIVATE_SENTINEL/);
+});
 test('Outlook envelope retains complete normal original, unicode character length and stable receipt hash',()=>{assert.deepEqual(outlookInput('outlook-ingest',data),data);});
 test('held body is null on transport; truncated or secretly included held original is rejected',()=>{
  const held={...data,body_length:100001,original_json:JSON.stringify({...mail,body:null})};assert.deepEqual(outlookInput('outlook-ingest',held),held);

@@ -9,12 +9,23 @@ class Node{
 }
 const ids=['outlook-message','outlook-status','outlook-start','outlook-list','outlook-prev','outlook-next','outlook-inquiry','outlook-inquiry-prev','outlook-inquiry-next','outlook-review','outlook-subject','outlook-meta','outlook-body','outlook-link-form','outlook-linked-open','outlook-new-title','outlook-customer','outlook-customer-name','nav-outlook','outlook-reload','outlook-link-save','outlook-link-mode','detail-mails','outlook-filter','outlook-triage','outlook-triage-note'];
 ids.push('mobile-outlook','outlook-review-sync','outlook-category-filter','outlook-classification-filter','outlook-proposal','outlook-label','outlook-role','outlook-category','outlook-classify','outlook-classification-section');
+ids.push('outlook-workflow','outlook-workflow-preview');
 function fixture(){const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));return {nodes,document:{getElementById:id=>nodes[id],createElement:tag=>new Node(tag)}};}
 const mail=(id,body='SYNTHETIC <script>原文 😀')=>({id,state:'pending',excluded:false,triage_revision:1,subject:id,occurred_at:'2026-10-06T12:00:00Z',direction:'received',original:{body,sender:'synthetic@example.test',recipients:'synthetic@example.test',attachments:[]}});
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 const status={running:false,total:2,pending:2,held:0,receipted:0};
 function setup(f,api){return initOutlook({api,message:(id,text)=>f.nodes[id].textContent=text,show(){},open:async()=>{}});}
 function base(path){if(path==='/api/outlook/local')return status;if(path==='/api/lookups')return {customers:[]};if(path.startsWith('/api/inquiries'))return {inquiries:[],hasMore:false};return {mails:[mail('A'),mail('B')],hasMore:false};}
+
+test('workflow preview only runs on explicit click and never writes classification, inquiry or Action',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{const calls=[];setup(f,async(path,method)=>{calls.push({path,method});return path.endsWith('/workflow')?{workflow:{work_kind:'납기 확인',stage:'중간 답변 후보',waiting_on:'HQ 확인 필요',next_action:'추가 답변 확인',thread_count:2,later_sent:0,later_received:0,observed_at:'2026-10-06T12:00:00Z',evidence:['최신 본문'],caveats:['제안·미확정']}}:path==='/api/outlook/A'?{mail:mail('A')}:base(path);});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();assert.equal(calls.some(c=>c.path.endsWith('/workflow')),false);await f.nodes['outlook-workflow'].listeners.click();assert.match(f.nodes['outlook-workflow-preview'].textContent,/중간 답변 후보/);assert.match(f.nodes['outlook-workflow-preview'].textContent,/제안/);assert.equal(calls.some(c=>c.method),false);}finally{globalThis.document=old;}
+});
+
+test('late workflow after logout or mail change cannot restore private suggestion; failure is visible',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{let resolve;const out=setup(f,async path=>path.endsWith('/workflow')?new Promise(r=>resolve=r):path==='/api/outlook/A'?{mail:mail('A')}:base(path));f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();const p=f.nodes['outlook-workflow'].listeners.click();out.reset();resolve({workflow:{next_action:'PRIVATE_LATE'}});await p;assert.equal(f.nodes['outlook-workflow-preview'].textContent,'');assert.equal(f.nodes['outlook-workflow'].disabled,false);}finally{globalThis.document=old;}
+});
 test('mail list only reads metadata and never creates inquiries or messages',async()=>{
  const f=fixture(),old=globalThis.document;globalThis.document=f.document;
  try{const writes=[];setup(f,async(path,method)=>{if(method)writes.push(path);return base(path);});f.nodes['nav-outlook'].listeners.click();await flush();assert.equal(f.nodes['outlook-list'].children.length,2);assert.deepEqual(writes,[]);}finally{globalThis.document=old;}
