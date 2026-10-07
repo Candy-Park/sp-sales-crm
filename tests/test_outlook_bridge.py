@@ -10,6 +10,11 @@ from outlook_bridge import envelope
 from outlook_outbox import Outbox,canonical
 
 class BridgeTests(unittest.TestCase):
+    def test_received_only_folders_and_helper_direction_survive_dot_source(self):
+        collector=str(Path(__file__).resolve().parent.parent/'tools/outlook_capture.ps1').replace("'","''")
+        script="& {param([string]$CaptureDirection); . '"+collector+"' -LibraryOnly; $folders=@(Get-CrmCaptureFolders $CaptureDirection); if($CaptureDirection -ne 'received' -or $folders.Count -ne 1 -or $folders[0].Id -ne 6 -or $folders[0].Date -ne 'ReceivedTime'){throw 'Received scope changed'}; if(@(Get-CrmCaptureFolders).Count -ne 2){throw 'Default changed'}; if(@(Get-CrmCaptureFolders 'sent')[0].Id -ne 5){throw 'Sent scope changed'} } -CaptureDirection 'received'"
+        result=subprocess.run(['powershell.exe','-NoProfile','-Command',script],capture_output=True)
+        self.assertEqual(result.returncode,0,'Direction selection must preserve default scope and received-only selection')
     def test_scope_helper_dates_survive_dot_sourced_collector_parameters(self):
         collector=str(Path(__file__).resolve().parent.parent/'tools/outlook_capture.ps1').replace("'","''")
         script="& {param([datetime]$ScopeStart,[datetime]$ScopeEnd,[string]$CaptureDestination); . '"+collector+"' -LibraryOnly; if($ScopeStart.Year -ne 2026 -or $ScopeEnd.Month -ne 10 -or $CaptureDestination -ne 'synthetic.json'){throw 'Scope parameters overwritten'} } -ScopeStart '2026-09-07T01:27:00' -ScopeEnd '2026-10-07T01:27:00' -CaptureDestination 'synthetic.json'"

@@ -8,6 +8,7 @@ param(
     [datetime]$End,
     [ValidateSet('Preview','Capture')][string]$Mode='Preview',
     [string]$OutputPath,
+    [ValidateSet('both','received','sent')][string]$Direction='both',
     [switch]$LibraryOnly
 )
 $ErrorActionPreference='Stop'
@@ -19,6 +20,10 @@ function Get-CrmHash([string]$Value) {
 function Get-CrmScopeKey([string]$Mailbox) {
     if ([string]::IsNullOrWhiteSpace($Mailbox)) { throw 'Mailbox identity required.' }
     Get-CrmHash ('sp-sales-crm:outlook:mailbox:'+$Mailbox.Trim().ToLowerInvariant())
+}
+function Get-CrmCaptureFolders([ValidateSet('both','received','sent')][string]$Selection='both') {
+    @(@{Name='Inbox';Id=6;Date='ReceivedTime';Direction='received'},@{Name='Sent';Id=5;Date='SentOn';Direction='sent'}) |
+        Where-Object {$Selection -eq 'both' -or $_.Direction -eq $Selection}
 }
 function Assert-CrmCaptureWindow([datetime]$WindowStart,[datetime]$WindowEnd) {
     if ($WindowStart -ge $WindowEnd) {throw 'Start must precede End.'}
@@ -72,7 +77,7 @@ $crmStartText=$Start.ToString('MM/dd/yyyy hh:mm tt',$crmCulture)
 $crmEndText=$End.ToString('MM/dd/yyyy hh:mm tt',$crmCulture)
 $crmRecords=[Collections.Generic.List[object]]::new(); $crmStatistics=[Collections.Generic.List[object]]::new()
 $crmTotal=0
-foreach ($crmSpec in @(@{Name='Inbox';Id=6;Date='ReceivedTime';Direction='received'},@{Name='Sent';Id=5;Date='SentOn';Direction='sent'})) {
+foreach ($crmSpec in @(Get-CrmCaptureFolders $Direction)) {
     $crmFolder=$crmStore.GetDefaultFolder($crmSpec.Id)
     $crmFilter='['+$crmSpec.Date+"] >= '"+$crmStartText+"' AND ["+$crmSpec.Date+"] < '"+$crmEndText+"'"
     $crmItems=$crmFolder.Items.Restrict($crmFilter)
