@@ -356,3 +356,15 @@ Windows 창 확인은 캡처 실패(0x80070057)와 창 활성화 접근 거부(0
 변경 파일은 `.gitignore`와 이 작업 기록 및 개발 보고서다. `.playwright-mcp/`를 ignored 처리하여 도구가 만드는 임시 페이지/콘솔 파일의 Git 혼입을 막았다. 설정 사전 사본은 D outputs/2026-10-07-chrome-verification-gitignore-before.txt, 문서 사전 사본은 chrome-connection-operation-before.md와 chrome-connection-report-before.md다. 공개 로그인 화면 증거는 chrome-reconnect-login.png이며 실제 인증 검증 증거와 구분한다. 진단/HTTP 결과는 chrome-connection-diagnostics.json에 원문·인증정보 없이 보관한다.
 
 이번 앱 기능/DB 변경·서버 재시작·SQL 재적용·메일 업로드·분류 확정·문의 연결·AI 호출·발송·원격/push/배포는 0이다. 새 HTTP 조회에서 CRM 공개 페이지 200, 인증 없는 /api/me 및 workflow 401을 확인했다. Git 제외 동작·diff 검사와 ignored 검증 helper 구문 검사를 새로 통과했다. 기능 소스가 바뀌지 않아 전체 검사/빌드를 반복하지 않는다. 이전 96/76 검사·빌드 결과를 이번 새 실행 결과로 주장하지 않는다. 이 세 파일만 선별 로컬 커밋한다. 실제 인증 workflow 화면·다른 실메일의 기존 문의 연결·두 실제 세션/실제 만료 검증은 계속 남는다. 다음 실행은 사용자 로그인을 다시 요청하지 않고 기존 Chrome 제어 연결부터 확인한다. 사용자의 직접 PC/원격 데스크톱 사용 경로 확인만 요청했다. 복원은 사전 사본/시작 커밋과 해당 세 파일만 비교하며 사용자 인증 세션·운영 큐·서버 DB는 되돌리지 않는다.
+
+### 재연결 후 원문·접근 차단 검증 진행 — 2026-10-07
+
+시작 `5add31c`, 같은 로컬 브랜치·원격 없음. 사용자 로그인과 CRM 창 열기는 완료로 유지하며 반복 인증을 요청하지 않는다. Windows 이벤트에서 서울 17:23:07 세션 1의 연결 해제 이유 2147942521(0x80070079), 17:23:08 해제, 17:28:12 재연결을 확인했다. 이후 세션 1은 console/Active다. 현재도 Windows 제어 도구는 Chrome 주소를 신뢰할 수준으로 확인하지 못해 안전상 해당 턴을 중단했다. 따라서 원격 세션 해제만으로 전체 제어 실패를 단정하지 않는다. 시간 초과 코드는 [Microsoft 오류 정의](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-), 다른 연결로 교체된 재연결 시 코드 5는 [Microsoft 연결 해제 이유 정의](https://learn.microsoft.com/en-us/windows/win32/termserv/extendeddisconnectreasoncode)와 대조했다. 원격 앱 자체 결함이나 교체 필요성은 확인되지 않았다.
+
+Chrome 두 등록 연결에서 기존 CRM 탭을 찾지 못했다. 공식 browser-troubleshooting 문서대로 기존 연결의 새 임시 탭 생성도 시도했지만 응답 시간 초과였다. 실행 중인 일반 Chrome에는 기존 디버깅 포트/파이프가 없으며 새 디버깅 접근을 켜지 않았다. 실제 프로필 이름과 설치된 ChatGPT 확장 메타데이터만 읽기 전용으로 대조했고, 사용자에게 확장의 표시 상태 확인만 요청했다. 등록/설치 사실을 제어 연결 정상이나 활성 상태의 증거로 취급하지 않는다. Chrome/Windows 보안·확장 설정, 앱 인증이나 원격 프로그램은 변경하지 않았다.
+
+연결 복구를 기다리는 동안 ignored `notes/verify-reconnect-readonly.py`로 운영 SQLite를 read-only로 검사했다. 실제 원문 342건·영수증 342·미전송 0·수신 295·발신 47·보류 4이며 이전 3개월 조회 전 보존 기준의 원문/ID/영수증 집계 SHA-256과 일치한다. 모든 342건에서 업무 제안 read_workflow를 실행하여 제안/자동 반영 금지·본문 비노출·보류 조건을 확인했다. 별도 위조 소유자와 영수증 해시 조회는 거절됐다. 검사 전후 원문·영수증·수집 상태·소유자 바인딩 해시도 일치한다. 첫 helper 실행의 모듈 검색 경로 오류를 tools 경로 추가로 정정한 후 통과했으며 원문/DB를 수정하지 않았다. 새 후보나 사용자 gold를 만들거나 기존 동결 산출물을 재생성하지 않았다.
+
+새 HTTP 검사: 공개 페이지/config 200·새 Supabase URL 일치·인증 없음/무효 토큰 401·다른 Origin workflow 403. 관련 Node Auth/Outlook API/UI 검사 43/43 통과이며 가상 인증 응답 검사와 실제 로그인 검증을 구분한다. 보고서는 D outputs/2026-10-07-chrome-reconnect-local-check.json, chrome-reconnect-http.json, chrome-reconnect-node.txt다. 추가 메일/서버 쓰기·분류 확정·문의 연결·AI 호출·발송·서버 재시작은 0이다.
+
+이 작업 기록·개발 보고서만 diff 검사 후 선별 로컬 커밋한다. 문서 사전 사본은 D outputs/2026-10-07-chrome-reconnect-progress-operation-before.md와 chrome-reconnect-progress-report-before.md다. 문서 복원은 시작 커밋/사전 사본과 파일별 비교하며 원문·영수증·서버 DB·사용자 로그인은 되돌리지 않는다. 다음 작업은 기존 Chrome 제어 연결 복구 및 실제 authenticated workflow/문의 연결 확인이며, 사용자 로그인 완료를 다시 미완료로 바꾸지 않는다.
