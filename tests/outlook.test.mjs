@@ -47,3 +47,21 @@ test('foreign mail is not found, constraints conflict safely and mail deletion n
  const up=upstream();assert.equal((await handleApi(request('/api/outlook/'+mid,'DELETE',{}),env,up.fetch)).status,405);assert.equal(up.calls.length,0);
  for(const [code,status] of [['40001',409],['23514',422],['42501',403]])assert.equal((await handleApi(request('/api/outlook/'+mid+'/link','POST',{inquiry_id:mid}),env,upstream(true,code).fetch)).status,status);
 });
+
+test('triage only accepts a boolean decision and revision; no ownership or original changes',()=>{
+ assert.deepEqual(outlookInput('outlook-triage',{excluded:true,revision:1}),{excluded:true,revision:1});
+ for(const bad of [{},{excluded:'true',revision:1},{excluded:true,revision:0},{excluded:false,revision:1.5},{excluded:true,revision:2147483647},{excluded:true,revision:1,owner_id:uid},{excluded:true,revision:1,original:{}}])assert.throws(()=>outlookInput('outlook-triage',bad));
+});
+test('active list hides excluded mail on the server; filters paginate independently without bodies',async()=>{
+ for(const [view,filter] of [['','eq.false'],['excluded','eq.true'],['all',null]]){
+  const up=upstream();assert.equal((await handleApi(request('/api/outlook?offset=50'+(view?'&view='+view:'')),env,up.fetch)).status,200);
+  const u=up.calls.at(-1).u;assert.equal(u.searchParams.get('excluded'),filter);assert.equal(u.searchParams.get('offset'),'50');assert.equal(u.searchParams.get('select').includes('original'),false);
+ }
+ const up=upstream();assert.equal((await handleApi(request('/api/outlook?view=forged'),env,up.fetch)).status,400);
+});
+test('authenticated exclusion uses invoker RPC and stale revisions are conflicts; anonymous is blocked',async()=>{
+ const up=upstream();assert.equal((await handleApi(request('/api/outlook/'+mid+'/triage','POST',{excluded:true,revision:1}),env,up.fetch)).status,200);
+ assert.equal(up.calls.at(-1).u.pathname,'/rest/v1/rpc/sales_triage_outlook');assert.deepEqual(JSON.parse(up.calls.at(-1).init.body),{p_id:mid,p_data:{excluded:true,revision:1}});
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/triage','POST',{excluded:true,revision:1}),env,upstream(true,'40001').fetch)).status,409);
+ assert.equal((await handleApi(request('/api/outlook/'+mid+'/triage','POST',{excluded:true,revision:1},null),env,upstream().fetch)).status,401);
+});

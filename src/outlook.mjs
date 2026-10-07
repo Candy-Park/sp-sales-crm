@@ -2,6 +2,10 @@ import {id,writeInput} from './write-input.mjs';
 const hash=/^[0-9a-f]{64}$/;
 export function outlookInput(operation,data){
   if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('수집 입력을 확인해주세요.');
+  if(operation==='outlook-triage'){
+    if(Object.keys(data).sort().join(',')!=='excluded,revision'||typeof data.excluded!=='boolean'||!Number.isInteger(data.revision)||data.revision<1||data.revision>2147483646)throw new Error('업무 제외·복원 입력을 확인해주세요.');
+    return {excluded:data.excluded,revision:data.revision};
+  }
   if(operation==='outlook-link'){
     if(Object.keys(data).some(k=>!['inquiry_id','registration'].includes(k)))throw new Error('연결 입력을 확인해주세요.');
     if(Boolean(data.inquiry_id)===Boolean(data.registration))throw new Error('신규 또는 기존 문의를 선택해주세요.');
