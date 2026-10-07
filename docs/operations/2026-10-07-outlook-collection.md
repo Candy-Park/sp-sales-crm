@@ -417,3 +417,15 @@ Chrome 두 등록 연결에서 기존 CRM 탭을 찾지 못했다. 공식 browse
 지속 추적 요청에 따라 Codex의 현재 대화 heartbeat `rma-67219`를 ACTIVE로 생성했다. 평일 09:00 Asia/Seoul, 해당 사례의 새 회신/사용자 제공 근거만 읽기 전용 확인하며 변화 없음은 조용히 유지하고 의미 있는 변화/완료/실패/필요 조치만 알린다. 첫 도구 요청은 destination 누락으로 거절됐고 destination=thread를 추가한 요청에서 생성 성공을 확인했다. 첫 예약 실행과 메일 접근 성공은 아직 검증하지 않았다. 사용자가 직접 수행할 DHL 예약/제출과 원본 Excel 저장을 예약 작업으로 대행하지 않는다. 기존 백그라운드 실행 금지에 대해 이번 명시 요청은 좁은 정기 추적만 허용하는 것으로 기록하며 서비스 설치·인증 영구 저장·자동 발송·AI API 호출·CRM 개발 자동화로 확대하지 않는다.
 
 변경은 기획서·검토 기록·이 작업 기록, 비공개 사례 상태 notes다. 세 공유 문서 사전 사본은 D outputs/rma-67219/의 plan-before-rma-expansion.md, decisions-before-rma-expansion.md, operation-before-rma-expansion.md다. 새 검증은 문서 역할/확장 시점/미완료 조건 대조, git diff --check와 예약 view의 ACTIVE/일정/대상 대화 확인이다. 앱/DB/동결 빌드 변경과 새 메일 수집·인보이스/원본 Excel 수정은 없다. 세 공유 문서만 선별 로컬 커밋, 원격/push/배포 없음. 복원은 시작 커밋/사전 사본과 문서별 비교하며 예약 중지·삭제는 사용자가 요청할 때 별도로 처리한다. 남은 1차 검수와 인보이스 확정/물류·공장·고객 단계는 계속 미완료다.
+
+### MVP 1차 잔여 검수: 실제 추가 연결·폴더 이동 — 2026-10-07
+
+기존 실제 Chrome 로그인과 4317 서버를 유지하고, 원격 없는 codex/login-access의 clean 상태에서 시작했다. 실제 후속 수신 메일의 로컬 대화 식별자·인용된 기존 요청·본문 길이와 브라우저 비교 체크섬을 확인한 뒤 기존 문의에 연결했다. 제목만으로 병합하지 않았다. 브라우저에서 연결 목록 1→2건을 확인하고 새 Supabase 읽기 전용 집계로 연결 2·문의 4·Action 5를 확인했다. 신규 문의·Action·분류 확정·메일 업로드는 없다. 비교 체크섬은 원문 보존 SHA-256과 구분한다. 연결 증거 화면은 D outputs/2026-10-07-mvp-actual-mail-link.png이며 원문 영역을 제외했다.
+
+Classic Outlook 정상 폴더 48개를 재조회해 기간 내 305·기존 수신 295키 일치·오류 0·현재 Inbox 밖 0을 확인했다. 사용자 확정 관계없는 메일 한 건을 받은 편지함에서 삭제된 항목 폴더로 Move 후 finally에서 즉시 받은 편지함으로 Move 복원했다. 영구 삭제/발송은 없다. 실제 EntryID 변경, Internet Message ID 기반 source_key 유지, 이동 전후 본문 해시 유지, 원래 폴더·본문·식별자·읽음 상태 복원을 확인했다. 운영 SQLite 전체 파일 SHA-256도 유지했다. 이번 이동 검수는 실제 메일 이동/복원과 식별자 유지이며 이동 상태에서 서버 재수집·업로드를 수행한 검수는 아니다. 결과는 D outputs/2026-10-07-mvp-actual-folder-move.json 및 mvp-folder-current.json, helper는 ignored notes에 보존한다.
+
+Auth/Storage 현재 집계: 사용자 1·identity 1·session 12·Storage bucket 0·object 0(2026-10-07 11:00:20 UTC). 개인 사용자 식별자·세션 토큰·암호 해시는 조회/출력하지 않았다. 기존 public 업무 복원 도구는 auth.users(id) 호환 테이블만 생성하므로 실제 Auth 서비스 복원 검수로 확대하지 않는다. Docker CLI는 설치됐지만 Linux 엔진 파이프가 없어 서비스 복원 환경이 현재 가동되지 않는다. Auth 데이터/설정 및 실제 로그인 가능한 격리 복원 환경, Storage 메타데이터/파일 범위는 추가 보완 대상이다. 현재 객체 0은 Storage 파일 복원 성공 증거가 아니다.
+
+두 실제 세션 경합을 위해 기존 로그인과 별도로 Chrome 로그인 탭을 열고 사용자 직접 로그인을 요청했다. 두 번째 탭은 아직 로그인 전으로 확인됐다. 앱은 persistSession:false와 autoRefreshToken:true이므로 정상 토큰 갱신과 실제 만료 후 인증 실패를 구분해야 한다. 실제 만료·두 로그인 세션 경합은 미완료다. 운영 Auth 설정·기기 시각·기존 토큰을 변경하거나 브라우저 메모리 자격증명을 추출하지 않았다.
+
+변경은 작업 기록·개발 보고서·검토 기록이며 앱/DB 구조·동결 빌드·기 적용 SQL은 유지했다. 사전 사본은 D outputs/2026-10-07-mvp-verification-before/{operation,report,decisions}.md다. 문서 diff 검사 후 세 파일만 선별 로컬 커밋하며 원격/push/배포 없음. 소스 변경이 없어 전체 Node/Python/빌드를 반복하지 않는다. 문서는 시작 커밋/사전 사본과 파일별 비교로 복원 가능하다. 실제 메일 연결은 유지하며 운영 자료를 임의로 되돌리지 않는다. 남은 검수는 두 번째 직접 로그인 후 경합, 실제 만료, 전체 Auth 서비스 복원, 향후 Storage 객체 복원과 1주 실사용이다.
