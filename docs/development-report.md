@@ -18,4 +18,6 @@
 
 AI 서비스·모델·비용은 아직 선택하지 않아 호출하지 않는다. Outlook 실제 메일 문의 연결·폴더 이동/답장/전달, 두 세션 경합·백업 복원 검증·1주 실사용은 남아 있다. 백그라운드 자동 실행·인증정보 영구 보관·배포는 이번 승인 범위에 포함하지 않는다. 기존 CRM과 Supabase sp-crm, 무료 플랜과 로컬 전용 Git 조건을 유지했다.
 
+Outlook 로컬 큐의 백업·복원은 별도 D 사본에서 실제 검증했다. SQLite backup API → 새 경로 복원 → 재실행 → 원문 재등록으로 원문/영수증 338건·미전송 0·held 4·소유자 바인딩과 중복 방지를 확인했고 실행 중인 큐는 변경하지 않았다. 원문·영수증·상태·바인딩 집계 해시도 복원 직후 일치했다. 후속 Python 39개·Node 81개 검사 통과. **Supabase의 고객/문의/Action/회신/제품 연결을 포함한 전체 DB 복원 검수는 여전히 미완료**다.
+
 근거: [기본 업무](operations/2026-10-06-basic-work-write.md), [제품 검색](operations/2026-10-07-product-search.md), [회신 기능](operations/2026-10-07-communication.md), [Outlook 로컬 수집](operations/2026-10-07-outlook-collection.md), [SP 로고·색상 적용](operations/2026-10-07-brand-colors.md).
