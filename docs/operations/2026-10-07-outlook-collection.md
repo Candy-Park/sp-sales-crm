@@ -153,3 +153,24 @@ D outputs/2026-10-07-outlook-triage- 접두어에 red.txt, db-before.txt, db-tes
 - 소스/문서와 검사만 선별 로컬 커밋하고 커밋 ID는 Git 이력으로 연결한다. 원격·push·배포 없음. 해당 변경은 `acfc2ac`와 파일별 비교해 복원할 수 있다. 현재 운영 큐와 서버 데이터는 덮어쓰거나 삭제하지 않는다. 검증용 대용량 사본은 위 D 경로에 유지했다.
 
 이 검증은 Outlook 로컬 outbox만 대상으로 한다. Supabase 전체 DB의 고객·문의·메시지·Action·제품 후보 관계 복원 검수와 정기 백업 주기/보관 기간/복구 목표는 남아 있다. 로컬에 psql/pg_dump/pg_restore/postgres 명령은 없어 서버 복원 도구나 환경을 임의 설치하지 않았다. 실제 메일 후보의 고객사 확인·제외/복원·문의 연결, 두 실제 세션 경합과 1주 실사용도 미완료다. AI 서비스·모델·비용은 미결정이며 호출하지 않는다.
+
+## 사용자 확인 후 실메일 신규 문의 연결·제외/복원 검증 — 2026-10-07
+
+사용자가 업무 메일의 회사 약어가 같은 업체임을 확인하고, 기존 개인 폴더와 일치하는 짧은 고객명으로 기록하라고 지정했다. 확인된 고객명·약어 관계는 실제 고객 데이터와 ignored notes/confirmed-customer-aliases.json에 남기며 공유 Git 기록에 개인 메일 제목·고객명·주소·본문을 넣지 않는다. 시작 커밋 `8939300`, 로컬 브랜치 `codex/login-access`, 원격 없음.
+
+### 실행·검증·보존
+
+1. 로그인된 기존 Chrome 세션에서 선택한 업무 메일의 신규 문의 연결을 실행했다. 고객 1개·문의 1개·메일 연결 1개를 생성하고 고객사 필터로 저장된 문의 1건을 재조회했다. 문의는 new·email이고 접수 시각은 원본 수신 시각이다. 보낸 기록/Action 생성은 각각 0이다. 실제 업무 문의를 테스트 완료라는 이유로 종료하거나 삭제하지 않았다.
+2. 읽기 전용 DB 대조: 고객명 일치, 고객/문의/메일 소유자 일치, 신규 상태/이메일 채널, 문의 original_text와 메일 body의 정확한 일치, 접수 시각 일치, 연결 1개·고객 중복 없음. 메일 payload SHA-256·본문 SHA-256은 연결 전과 동일하다. 연결된 메일 상세는 새 연결 폼과 업무 제외 버튼을 숨기고 연결 문의를 열 수 있다.
+3. 광고 검증 메일: 기본 목록에서 직접 제외 → 제외 목록 1건·복원 버튼·문의 연결 폼 숨김 → 같은 승인 사서함/기간을 실제 Outlook에서 재수집 → 제외 true/검토 버전 2와 원문 해시 유지 → 복원 → 제외 목록 0건. 최종 원문과 영수증은 보존하며 해당 검토 버전은 3이다. 광고를 영구 제외하거나 여러 메일을 자동 분류하지 않았다.
+4. 실제 재수집: 로컬 338·영수증 338·미전송 0·held 4, 신규 0/중복 338. 새 capture의 모든 원문을 현재 SQLite와 비교하여 이전 ID·원문/영수증 해시 정확한 일치를 확인했다. SQLite integrity=ok. 구체적인 capture 위치는 ignored notes/outlook-live-link-recapture-location.json에만 보관했다. 이미 영수증이 있는 메일을 다시 서버 전송한 시험과는 구분하며, 제외된 메일의 ingest RPC 중복 보존은 앞선 실제 DB 합성 ROLLBACK 검사를 따른다.
+5. 최종 서버 전체 338, 검토 대기 333, 연결 1, held 4, 제외 0, 받은 291/보낸 47. held 4건 body=null, 일반 334건 길이 일치. 전체 식별/원문 집계 SHA-256은 이전과 동일하다. `verify-outlook-collection.sql` 재검증: `outlook_actual_access_passed`, total=338, enabled_accounts=1, RLS/invoker/원문 변경·삭제 차단 모두 true. 역할/claim만 ROLLBACK하며 기존 DDL은 재실행하지 않았다.
+6. 화면 상세 조회 초기에 비동기 응답을 기다리지 못해 제외 버튼을 찾지 못했다. 현재 상태 확인 후 목록 영역의 대상 버튼을 지정하고 상세 표시를 기다려 진행했다. 화면 증빙은 원문 영역을 제외한 상단만 저장했다. offset 영역 캡처 시간 초과를 확인하고 현재 화면 상단부터 캡처하는 방식으로 저장·눈으로 검수했다. 실제 본문/토큰/비밀번호는 도구 출력·산출물·Git에 기록하지 않았다.
+
+### 산출물·기록·복원·남은 작업
+
+D outputs의 2026-10-07-outlook-live-link- 접두어에 before.txt, after.txt, restored.txt, final-counts.txt, recapture.json, access.txt를 보관한다. 추가 검증 결과는 outlook-live-excluded.txt, outlook-live-excluded-recapture.txt, outlook-live-inquiry-check.txt와 dasan-inquiry-proof.jpg(모두 2026-10-07 접두어)다. 조회 결과는 건수·상태·검증용 해시/boolean만 포함한다. SQL의 구체적 메일 선택 조건과 도구는 ignored notes에만 둔다. 사용자 확인 고객명은 일반 업무 데이터이며 화면 증빙에 표시된다.
+
+문서 사본은 D outputs/2026-10-07-outlook-live-link-records-before/에 보존했다. 이번 소스/DB 구조 변경은 없으며 이전 Node 81·Python 39 검사와 빌드 결과를 재실행 결과로 주장하지 않는다. 새 검증은 위 실제 Chrome/DB/Outlook 재수집 대조와 git diff --check다. 개발 보고서·이 기록만 선별 로컬 커밋하며 커밋 ID는 Git 이력으로 연결한다. 원격·push·배포 없음. 문서는 `8939300`과 파일별 비교해 복원할 수 있다. 실제 고객/문의/메일 연결과 기존 원문·큐를 임의 삭제하거나 이전 백업으로 덮지 않는다.
+
+검증한 광고 메일은 복원했으며 실제 업무 문의는 신규 상태로 보존했다. 다음은 실제 업무 진행과 다른 실메일의 기존 문의 연결, AI 서비스·모델·비용 결정, 두 실제 세션 경합, Supabase 전체 DB 복원과 1주 실사용이다. 기존 PC CRM/sp-crm·무료 플랜·Auth·활성 경로·제품/회신 SQL과 동결 산출물을 유지했다. AI 호출·자동 발송·백그라운드 자동 실행·인증정보 영구 보관을 추가하지 않았다.
