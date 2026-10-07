@@ -368,3 +368,28 @@ Chrome 두 등록 연결에서 기존 CRM 탭을 찾지 못했다. 공식 browse
 새 HTTP 검사: 공개 페이지/config 200·새 Supabase URL 일치·인증 없음/무효 토큰 401·다른 Origin workflow 403. 관련 Node Auth/Outlook API/UI 검사 43/43 통과이며 가상 인증 응답 검사와 실제 로그인 검증을 구분한다. 보고서는 D outputs/2026-10-07-chrome-reconnect-local-check.json, chrome-reconnect-http.json, chrome-reconnect-node.txt다. 추가 메일/서버 쓰기·분류 확정·문의 연결·AI 호출·발송·서버 재시작은 0이다.
 
 이 작업 기록·개발 보고서만 diff 검사 후 선별 로컬 커밋한다. 문서 사전 사본은 D outputs/2026-10-07-chrome-reconnect-progress-operation-before.md와 chrome-reconnect-progress-report-before.md다. 문서 복원은 시작 커밋/사전 사본과 파일별 비교하며 원문·영수증·서버 DB·사용자 로그인은 되돌리지 않는다. 다음 작업은 기존 Chrome 제어 연결 복구 및 실제 authenticated workflow/문의 연결 확인이며, 사용자 로그인 완료를 다시 미완료로 바꾸지 않는다.
+
+### Chrome 연결 복구·실제 업무 검토 API 오류 수정 — 2026-10-07
+
+시작 `88a5b83`, `codex/login-access`, 작업 트리 clean·원격 없음. 사용자가 실제 Chrome의 확장 메뉴를 확인한 뒤 공식 브라우저 API의 사용자 탭 조회가 다시 정상 응답했다. 기존 CRM 탭을 새로고침 없이 연결해 로그인된 업무 화면을 읽었다. 정확한 연결 회복 원인은 확정하지 않으며 원격 프로그램 결함이나 교체 필요성으로 단정하지 않는다. 기존 탭은 최신 업무 검토 버튼이 없는 이전 화면이었다. 같은 실제 Chrome에 최신 CRM 탭을 준비하고 사용자가 직접 로그인한 뒤 검증했다. 내장 브라우저나 가상 Auth 화면으로 대체하지 않았다.
+
+실제 로그인 화면에서 업무 검토 조회가 503으로 실패했다. 새 프로젝트의 information_schema 읽기 전용 조회로 `sales_outlook_classified`에 scope_key가 없고 원문 테이블에는 있음을 확인했다. 해당 view는 scope_key/source_key/payload_hash를 노출하지 않는데 API와 기존 가상 응답 검사가 그 필드가 있다고 가정했다. `src/api.mjs`를 수정하여 서버 소유자 필터·RLS가 적용된 `sales_outlook_mail`에서 영수증 식별자만 읽고, 같은 소유자/메일의 분류 view에서는 category_group만 읽는다. 원문 본문을 이 경로의 서버 조회/응답에 추가하지 않는다. 분류 조회 누락도 성공으로 처리하지 않으며, URL의 위조 소유자/분류로 로컬 원문 조회를 허용하지 않는다. DB 구조·권한·기존 SQL은 변경하지 않았다.
+
+`tests/outlook.test.mjs`의 실제 view 구조에 맞춘 회귀 검사에서 수정 전 정상 업무·제외 업무 2건이 503≠200으로 실패했다. 수정 후 관련 20/20, 전체 npm test 98/98, Python 업무 검토 10/10 통과. 기존 Python 전체 76개 검사와 이번 10개를 구분한다. API만 수정했으므로 동결 프런트엔드/빌드를 재생성하지 않았다. 기존 4317의 정확한 Node 프로세스를 확인하고 로컬 서버를 한 번 재시작했다. 이후 같은 Chrome 메모리 로그인으로 업무 검토가 정상 응답했으며 재로그인·브라우저 새로고침은 반복하지 않았다.
+
+실제 인증 화면과 보존 원문 대조:
+
+- HQ 후보·고객 후보·사용자 확정 스팸·긴 본문 보류·기존 연결 메일, 총 5건의 실제 API 결과를 Chrome에서 표시하고 같은 고유 원문의 로컬 업무 검토 결과와 목적/단계/대기/다음 행동/대화 건수를 대조했다. 모두 일치하며 제안·미확정/자동 반영 없음이다. 분류 gold나 의미 정확도 확정으로 취급하지 않는다.
+- 스팸은 별도 검토·자동 문의 생성 없음, 최대 2,974,731자 원문은 로컬 전체 보존 안내·문의 연결 보류와 연결 폼 숨김을 확인했다. 서버의 보류 4건은 본문 null을 유지한다.
+- 연결된 Dasan 메일은 새 연결/업무 제외 폼이 숨겨진다. 연결된 문의를 실제 화면에서 다시 열어 원문이 메일과 같은지 메모리에서만 비교했다. 일치하며 새 문의·Action·분류 확정·연결은 저장하지 않았다.
+- 상세 요청 완료 전에 너무 빨리 검토 버튼을 클릭한 자동화 1건은 결과가 비어 있었고, 상세 로딩 완료를 확인한 뒤 실행하여 통과했다. 이 시도와 수정 전 실제 503을 구분한다.
+
+같은 실제 Chrome에서 승인 기간 직접 재수집을 실행했다. 신규 0·중복 338, 받은 291/보낸 47의 모든 source_key/원문 SHA-256이 기존 큐와 같다. 총 342·영수증 342·미전송 0·보류 4, 수신 295/발신 47을 유지한다. 원문·영수증·소유자 바인딩 집계 SHA-256도 사전 기준과 일치한다. 명시적 재수집의 capture_state 시각/배치와 마지막 성공 시각만 갱신된 것은 정상 이력으로 구분했다. 신규 서버 업로드 0이다.
+
+새 프로젝트의 읽기 전용 사전/사후 SQL에서 메일 342·본문 null 보류 4·문의 4·Action 5·분류 이력 3이 같고 메일/문의 전체 행 비교용 MD5도 일치한다. 원문 SHA-256 검사와 이 보조 MD5 비교를 구분한다. Monaco의 textarea fill이 문서 일부에 삽입되어 사후 SELECT가 한 번 구문 오류로 실패했다. 전체 선택 후 붙여넣기로 SELECT만 교체하고 새 실행 시각이 포함된 정상 결과를 확인했다. DDL·제품/회신 SQL을 실행하지 않았다. 클립보드 빈 항목 복원 오류는 빈 텍스트 쓰기로 정정했으며 조회 SQL만 비웠고 인증정보/원문은 복사하지 않았다. 수정한 4317의 공개 200·익명/무효 토큰 workflow 401·다른 Origin 403도 새로 통과했다.
+
+두 탭의 실제 동시 쓰기 검증을 준비할 때 이전 CRM 탭이 더 이상 전달되지 않았고 최신 CRM 한 탭만 확인됐다. 에이전트가 기존 로그인 탭을 종료하거나 새로고침하지 않았다. 따라서 이번 실제 검증은 최신 로그인 세션 1개이며 두 실제 로그인 세션 경합 완료로 보고하지 않는다. 다른 실메일의 기존 문의 연결·실제 토큰 만료·실제 폴더 이동, 사용자 gold/AI 선택·인증과 평가·1주 실사용도 계속 남는다. 기존 별도 public 업무 DB 복원 결과와 Auth/Storage 복원 한계는 유지한다.
+
+산출물은 D outputs/2026-10-07-workflow-authenticated-dashboard.jpg, workflow-live-before.json/after.json, workflow-fixed-http.json, workflow-authenticated-verification.json이다. 마지막 Dashboard는 같은 실제 로그인 Chrome에서 서버 조회 성공을 확인하고 전체 화면으로 보존했다. 앞서 workflow-authenticated-hq.jpg는 잘못된 영역이 잘려 업무 검토 성공 증거로 사용하지 않는다. 공개 로그인 증거는 chrome-control-recovered-login.jpg다. 개별 제목/선정 키/재수집 경로·비공개 검증 helper는 ignored notes에만 보존했다. 준비했던 별도 Playwright helper는 실패 시 인증 참조 해제와 원문 비교의 textContent를 보완했지만 실제 인증 검증에는 사용하지 않았다. 로그인 정보 추출·전달용 서버나 인증 우회 경로를 만들지 않았다. 본문·주소·암호·토큰은 로그/Git에 넣지 않았다.
+
+선별 커밋 대상은 API·회귀 검사·이 작업 기록·개발 보고서 4파일이다. 사전 사본은 D outputs/2026-10-07-workflow-api-before.mjs, workflow-test-before.mjs, workflow-fixed-operation-before.md, workflow-fixed-report-before.md다. 복원은 `88a5b83`/사전 사본과 해당 파일별 비교로 검토하고, 운영 원문·큐·영수증·서버 업무 자료를 되돌리거나 삭제하지 않는다. 정상 CRM 서버와 실제 로그인 Chrome 검증 탭을 유지한다. 원격/push/배포·기존 CRM/sp-crm 변경·AI 호출·발송·백그라운드 자동 실행·인증정보 영구 저장은 없다.

@@ -64,11 +64,14 @@ export async function handleApi(request, env, fetcher=fetch) {
       return data;
     };
     if(outlookWorkflow){
-      const mails=await read('sales_outlook_classified','id,scope_key,source_key,payload_hash,state,excluded,category_group',{id:'eq.'+outlookWorkflow[1],limit:'1'});
+      const filter={id:'eq.'+outlookWorkflow[1],limit:'1'};
+      const mails=await read('sales_outlook_mail','id,scope_key,source_key,payload_hash,state,excluded',filter);
       if(!mails.length)return reply(404,{error:'메일을 찾을 수 없습니다.'});
       if(!env.localWorkflow)return reply(503,{error:'이 PC의 원문 검토 연결이 필요합니다.'});
+      const classifications=await read('sales_outlook_classified','category_group',filter);
+      if(classifications.length!==1||typeof classifications[0].category_group!=='string')throw new Error('classification unavailable');
       const mail=mails[0],identity=Object.fromEntries(['id','scope_key','source_key','payload_hash'].map(k=>[k,mail[k]]));
-      const workflow=await env.localWorkflow(user.id,identity,mail.excluded?'업무 제외':mail.category_group??'미분류');
+      const workflow=await env.localWorkflow(user.id,identity,mail.excluded?'업무 제외':classifications[0].category_group);
       return reply(200,{workflow});
     }
     if(request.method!=='GET'){
