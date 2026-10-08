@@ -109,3 +109,9 @@ DOM 읽기 전용 검증에서 login-view 표시·workspace 숨김·계정 표�
 사용자가 직접 설치를 마친 뒤 확인을 요청했다. 기존 C:/Program Files/Docker/Docker/Docker Desktop.exe의 ProductVersion 4.94.0.241994를 읽어 설치 완료를 확인했다. 첫 조회에서는 Docker 프로세스와 Linux 엔진 pipe가 없어 엔진 연결에 실패했으므로 설치 완료와 가동 완료를 구분했다. 설치된 공식 앱을 한 번 실행한 뒤 새 docker info 조회가 성공했으며 ServerVersion 29.8.2·OSType linux·컨테이너 5개·이미지 7개를 반환했다. 새 호스트 로그의 2026-10-08T14:35:00Z(서울 23:35)에서 linux/wsl engine running after 18.512s를 확인했다. 이번 시작은 이전 Inference/Secrets Engine 시작 오류를 넘어 정상 엔진 응답까지 통과했다. 기존 객체 전체 내용이나 업데이트 전후 해시 비교를 수행한 것은 아니므로 전체 데이터 보존 검증 완료로 확대하지 않는다.
 
 설치와 이번 정상 시작 확인은 완료이며, 정상 종료 후 재시작의 반복 안정성 검수·Auth 서비스 격리 복원/직접 로그인은 아직 미완료다. 기존 컨테이너를 중지/재시작하거나 DB/Auth/설정을 변경하지 않았고 추가 백업·진단 업로드·PC 재부팅은 하지 않았다. Windows Update/Component Servicing의 재부팅 대기 표시도 계속 존재하므로 엔진 정상 응답을 재부팅 대기 해소로 해석하지 않는다. 확인 결과만 이 기존 기록에 남기며 diff --check 후 선별 로컬 커밋·원격 없음/push 없음. 문서 복원은 직전 ca09b32와 파일별 비교한다. 기존 보존 폴더와 다운로드 파일을 임의 삭제하지 않았으며 새 복제 파일은 만들지 않았다.
+
+### 2026-10-09 Docker 정상 종료·재시작 검수
+
+사용자가 Docker Desktop 앱 정상 종료 후 재시작 검수를 승인했다. 시작 전 컨테이너 5개의 ID/이름/실행 상태를 확인했다. 공식 docker desktop stop --timeout 45가 exit 0으로 완료됐고 Docker Desktop/com.docker.backend 프로세스가 없음을 확인했다. 강제 종료 없이 설치된 4.94 앱을 다시 실행한 뒤 새 docker info에서 엔진 29.8.2·컨테이너 5·이미지 7 응답을 확인했다. 전후 컨테이너 ID 5개가 모두 동일하며 모두 Up 상태다. DB/Auth/Kong 및 bh-service-postgres의 health 표시는 healthy, REST는 health 표시 없이 실행 상태다. 이번 한 번의 정상 종료/재시작에서 이전 소켓 오류는 재발하지 않았다. 장기간·PC 재부팅 안정성이나 컨테이너 내부 데이터 전체 비교를 의미하지 않는다.
+
+PC 재부팅·설정/DB/Auth 변경·추가 백업·삭제·원격 업로드 없음. 승인된 앱 종료 동안 해당 Docker 서비스들은 잠시 중단됐다가 기존 컨테이너로 돌아왔다. 결과만 기존 기록에 남기고 diff --check 후 선별 로컬 커밋한다. 복원은 직전 기록과 Git 파일별 비교이며, 실제 복구 검수/컨테이너 내부 기능 검증은 별도로 판단한다. Docker 종료/재시작 검수는 통과, 실제 운영 Auth 백업 복원 검수 등 잔여 업무는 별도다.
