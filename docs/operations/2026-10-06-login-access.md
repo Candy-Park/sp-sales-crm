@@ -103,3 +103,9 @@ DOM 읽기 전용 검증에서 login-view 표시·workspace 숨김·계정 표�
 ### 2026-10-08 Docker 공식 설치 파일 다운로드
 
 사용자가 다운로드만 요청하여 공식 릴리스의 Windows x64 Docker Desktop 4.94.0 설치 파일을 D:/AI/projects/sp-sales-crm/sources/installers/Docker-Desktop-4.94.0-Installer.exe에 저장했다. 실제 ProductVersion 4.94.0.241994, 파일 크기 635493296바이트, SHA-256 a9814e31049d66156477a86614e83365669677733014ec72f74229623ff3890a를 확인했다. 공식 https://desktop.docker.com/win/main/amd64/241994/checksums.txt와 일치하며 Authenticode Valid·서명자 Docker Inc를 확인했다. 설치 파일 출처는 공식 https://docs.docker.com/desktop/release-notes/의 4.94.0 Windows 링크다. 설치 파일 실행·업데이트·약관 동의·설정 변경·PC 재부팅은 수행하지 않았고 기존 Docker 4.80과 데이터/설정은 유지했다. 추가 백업은 생성하지 않았으며 설치 파일은 저장소 밖에 있다. 이 기록만 선별 로컬 커밋하고 원격/push/배포 없음. 다운로드 취소 시 영향 대상은 위 설치 파일 하나이며, 삭제는 이번 요청에서 실행하지 않았다. Docker 업데이트와 정상 종료/재시작 검증·Auth 서비스 복원은 미완료다.
+
+### 2026-10-08 사용자 설치 후 Docker 정상 기동 확인
+
+사용자가 직접 설치를 마친 뒤 확인을 요청했다. 기존 C:/Program Files/Docker/Docker/Docker Desktop.exe의 ProductVersion 4.94.0.241994를 읽어 설치 완료를 확인했다. 첫 조회에서는 Docker 프로세스와 Linux 엔진 pipe가 없어 엔진 연결에 실패했으므로 설치 완료와 가동 완료를 구분했다. 설치된 공식 앱을 한 번 실행한 뒤 새 docker info 조회가 성공했으며 ServerVersion 29.8.2·OSType linux·컨테이너 5개·이미지 7개를 반환했다. 새 호스트 로그의 2026-10-08T14:35:00Z(서울 23:35)에서 linux/wsl engine running after 18.512s를 확인했다. 이번 시작은 이전 Inference/Secrets Engine 시작 오류를 넘어 정상 엔진 응답까지 통과했다. 기존 객체 전체 내용이나 업데이트 전후 해시 비교를 수행한 것은 아니므로 전체 데이터 보존 검증 완료로 확대하지 않는다.
+
+설치와 이번 정상 시작 확인은 완료이며, 정상 종료 후 재시작의 반복 안정성 검수·Auth 서비스 격리 복원/직접 로그인은 아직 미완료다. 기존 컨테이너를 중지/재시작하거나 DB/Auth/설정을 변경하지 않았고 추가 백업·진단 업로드·PC 재부팅은 하지 않았다. Windows Update/Component Servicing의 재부팅 대기 표시도 계속 존재하므로 엔진 정상 응답을 재부팅 대기 해소로 해석하지 않는다. 확인 결과만 이 기존 기록에 남기며 diff --check 후 선별 로컬 커밋·원격 없음/push 없음. 문서 복원은 직전 ca09b32와 파일별 비교한다. 기존 보존 폴더와 다운로드 파일을 임의 삭제하지 않았으며 새 복제 파일은 만들지 않았다.
