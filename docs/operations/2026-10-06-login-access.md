@@ -51,3 +51,12 @@
 사용자 직접 로그인 완료 후 Chrome의 업무 화면에서 지정 계정과 '현재 계정의 업무를 확인했습니다.' 표시를 확인했다. 새 DB에는 실제 업무를 아직 넣지 않아 미완료 Action과 진행 문의가 비어 있다. 새로고침 버튼으로 인증된 실제 API 재조회 성공을 확인했다. 이후 로그아웃 버튼으로 업무 데이터와 사용자 표시가 닫히고 비밀번호가 비어 있는 로그인 화면으로 돌아오며 '로그아웃했습니다.' 표시를 확인했다.
 
 증거: outputs/2026-10-06-crm-login-verified.jpg 및 outputs/2026-10-06-crm-logout-verified.jpg. 현재 화면은 확인용 로그아웃을 마친 로그인 화면이다. 이번 로그인/조회/로그아웃 흐름은 실제 검증 완료. 토큰 만료 UI와 전체 업무 E2E·쓰기 기능은 별도 미완료다. 다음 작업은 2단계의 고객·수동 문의 등록과 Action/Closed의 DB 업무 규칙 연결이다.
+## 2026-10-08 실제 액세스 토큰 만료 검수 화면 준비
+
+두 실제 세션 수정 검수 후 사용자가 별도 검수 화면 준비를 승인했다. 시작 cddc9a6, codex/login-access, clean·원격 없음. tools/expiry-auth.mjs·expiry-sdk.mjs·expiry-server.mjs와 tests/expiry-auth.test.mjs를 추가했다. 운영 web/src·DB·Auth 설정·기존 CRM 4317과 두 로그인 탭은 유지했다. 설치된 Supabase SDK 2.117.2의 getSession이 자동 갱신 비활성화 상태에서도 만료 임박 시 갱신할 수 있음을 소스로 확인해, 별도 빌드에서만 최초 로그인으로 발급된 실제 액세스 토큰을 메모리 내 고정하는 검수 어댑터를 사용한다. 비밀번호·토큰을 도구 출력/파일/로그에 기록하거나 기존 탭에서 추출하지 않는다.
+
+4321 loopback 검수 서버는 실제 CRM UI 소스를 별도 D outputs/expiry-ui에 빌드하고 기존 인증/RLS API를 사용한다. 모든 업무 쓰기는 405로 차단하며, 실제 만료 이후 조회의 401 및 로그인 복귀/개인 화면 정리를 검수한다. 최초 토큰 만료 시각 65초 뒤 Dashboard 조회를 한 번 수행하며, 401 이외 결과는 미완료로 표시한다. 이는 자동 갱신을 제어한 별도 빌드의 실제 액세스 토큰 만료 검사이며 운영 자동 갱신 실패·전체 세션 수명 검수로 확대하지 않는다.
+
+새 검증: 관련 Node 24/24(검수 어댑터 3, 기존 인증/쓰기 API 포함), 새 별도 브라우저 번들 생성, server/sdk 문법 검사, HTTP / 200·인증 없는 /api/me 401·업무 POST 405·다른 Origin 403 확인. Chrome Personal_Candy 프로필의 4321 로그인 화면과 검수 안내를 확인했다. 실제 사용자 로그인·토큰 만료·401 이후 UI 검수는 아직 미실행이며 사용자 직접 로그인 대기다. 운영 빌드를 다시 만들거나 DB 쓰기 검수로 보고하지 않는다.
+
+근거: 공식 https://supabase.com/docs/guides/auth/sessions 및 설치 SDK GoTrueClient.__loadSession. changelog.md는 web에서 content-type으로 열리지 않아 변경 로그 검토를 완료했다고 주장하지 않는다. 사전 문서 사본은 D outputs/expiry-ui-before/{operation-before,report-before}.md. 변경 기록/도구만 선별 로컬 커밋, push/배포 없음. 복원은 cddc9a6와 해당 파일만 비교하며 검수 종료 시 정확한 4321 프로세스만 정리한다. 4317 서버·기존 세션·운영 데이터는 보존한다. 실제 만료 결과와 Auth 복원·AI 선택/평가·1주 실사용은 미완료다.
