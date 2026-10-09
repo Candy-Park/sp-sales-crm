@@ -124,3 +124,17 @@ tools/auth-backup.mjs와 tests/auth-backup.test.mjs를 추가해 사용자 직�
 새 검증: Node 전용 테스트 3/3, 도구 문법 검사, 실제 HTTP의 다른 Origin 403·잘못된 nonce 400 및 거부 후 ready 상태를 확인했다. Chrome Personal_Candy의 입력 화면을 열어 사용자에게 전달했다. DB 비밀번호 직접 입력이 필요한 상태이며, 실제 백업·별도 로컬 Auth 복원·복원 계정 로그인은 미완료다. 공식 restore-from-platform/backup-restore 문서와 CLI 2.120.0 도움말을 참고했다. 변경 로그 목록을 조회했지만 모든 관련 변경의 영향 검토를 완료했다고 주장하지 않는다.
 
 보존: 운영 DB/Auth, 기존 synthetic 컨테이너와 다른 프로젝트, 기존 Docker 보존 폴더, CRM 앱 소스·SQL·기존 검수 결과를 유지했다. 새 SQL 백업은 아직 없고 추가 Docker 백업도 만들지 않았다. 도구·전용 검사·이 기록·개발 보고서만 선별 로컬 커밋하며 원격 없음·push/배포 없음. 복원 방법은 17ee403과 이번 파일만 비교하고, 검수 종료 시 정확한 4323 도구 프로세스만 종료하는 것이다. 다음 작업은 사용자 입력 후 생성 파일의 크기/체크섬 확인, 기존 DB와 분리된 환경 복원, 사용자 직접 로그인 검수다.
+
+### 2026-10-09 실제 SQL 백업·격리 Auth 데이터 복원 결과
+
+사용자 직접 비밀번호 입력 후 4323 도구가 exported 상태가 됐다. 버튼 비활성화는 완료 후 중복 실행 방지 동작이었다. roles/schema/data SQL 3개와 manifest를 생성했고 크기·SHA-256 재검증이 모두 일치했다. DB 접속 비밀번호를 채팅이나 로그로 받지 않았다. 백업은 D sources/auth-backup-20261009에 있으며 운영 DB/Auth를 변경하지 않았다.
+
+D scratch/auth-restore-20261009에 현재 사용자·SYSTEM·Administrators만 접근 가능한 격리 복원 경로를 준비했다. 새 내부 Docker network crm-auth-restore-20261009, 새 DB crm-auth-restore-db와 Auth crm-auth-restore-auth만 생성했다. DB 이미지 17.6.1.171·GoTrue v2.197.0을 사용하며 새 로컬 DB/JWT 비밀값은 해당 private 경로에만 보관한다. 기존 synthetic 프로젝트의 데이터·설정·컨테이너를 바꾸지 않았고 baseline 시작 명령과 Storage 스키마만 읽기 전용 참고했다. DB 외부 포트는 없고 Auth 4324는 loopback으로 지정했으나 internal network에서 실제 published endpoint가 없어 외부 접속은 되지 않는다. 실제 GoTrue /health는 격리 DB 컨테이너 내부 curl로 응답 확인했다.
+
+시작 명령 전달 오류로 실패한 새 빈 DB 컨테이너만 상태·이미지·빈 pgdata를 확인한 뒤 재생성했다. 원래 컨테이너/volume이나 파일을 삭제하지 않았다. roles/schema/data 일괄 트랜잭션은 누락된 supabase_realtime_admin 역할·Storage 내부 테이블 문제로 실패하고 rollback됐다. 새 복원 DB의 관리자 권한으로 필요한 빈 관리 역할을 초기화한 뒤 roles/schema를 별도 트랜잭션으로 반영했다. Storage baseline에는 테이블이 없었고 원본 Storage COPY 블록 7개가 각각 실제 0건임을 확인했다. 원본 data.sql은 수정하지 않고 호환 사본에서 그 빈 블록만 제외했다. Auth 데이터나 세션·refresh token 행은 제외하지 않았다. 최종 데이터 트랜잭션은 통과했다. 이는 Storage 서비스/파일 복원 검증을 포함하지 않는다.
+
+새 검증: Auth 26개·public 업무 14개, 합계 40개 테이블의 원본 COPY 행과 복원 COPY 행을 정렬 후 해시 비교해 모든 행 수·내용이 일치했다. 사용자 1·identity 1을 포함한다. 상세 집계만 private verification.json에 보관한다. 첫 비교 도구의 1MiB 버퍼 초과 오류에서 일부 Outlook 메일 본문이 도구 출력에 노출됐다. 예외 출력 차단과 충분한 버퍼를 적용해 재실행했고 최종 검증 출력은 집계만 포함했다. 본문을 문서/저장소에 복사하지 않았다. 신규 Auth migration 상태나 전체 Storage 기능까지 완전한 운영 복구로 주장하지 않는다.
+
+복원 계정 로그인 확인용 loopback 4325 서버 소스를 private scratch에 준비하고 문법 검사했다. 기존 CRM 이메일/로그인 비밀번호를 사용해 실제 GoTrue password login·/user·CRM 접근 매핑을 확인하도록 구성했으나 서버 실행이 자동 승인 검토에서 정책 차단됐다. 구체적인 추가 사유는 제공되지 않았다. 우회 실행하지 않았고 실제 복원 계정 로그인 검수는 미완료다. 4323 백업은 완료했으므로 재입력/중복 실행하지 않는다.
+
+원격 없음·운영 변경·유료 API 호출·배포 없음. 이번에는 이 작업 기록과 개발 보고서만 선별 로컬 커밋한다. 민감 SQL·환경 파일·대화/본문·private helper를 Git에 넣지 않는다. 다음은 허용된 실행 환경에서 로그인 검수 서버를 실행하고 사용자 직접 로그인 후 결과를 확인하는 것이다. 복원 환경을 정리하려면 정확한 새 crm-auth-restore-* 컨테이너/내부 network와 위 D private 경로만 대상으로 하며, 기존 환경이나 백업을 삭제하지 않는다. 현재는 복원 DB/Auth를 보존하고 정리하지 않았다.
