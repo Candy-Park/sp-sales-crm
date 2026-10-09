@@ -115,3 +115,12 @@ DOM 읽기 전용 검증에서 login-view 표시·workspace 숨김·계정 표�
 사용자가 Docker Desktop 앱 정상 종료 후 재시작 검수를 승인했다. 시작 전 컨테이너 5개의 ID/이름/실행 상태를 확인했다. 공식 docker desktop stop --timeout 45가 exit 0으로 완료됐고 Docker Desktop/com.docker.backend 프로세스가 없음을 확인했다. 강제 종료 없이 설치된 4.94 앱을 다시 실행한 뒤 새 docker info에서 엔진 29.8.2·컨테이너 5·이미지 7 응답을 확인했다. 전후 컨테이너 ID 5개가 모두 동일하며 모두 Up 상태다. DB/Auth/Kong 및 bh-service-postgres의 health 표시는 healthy, REST는 health 표시 없이 실행 상태다. 이번 한 번의 정상 종료/재시작에서 이전 소켓 오류는 재발하지 않았다. 장기간·PC 재부팅 안정성이나 컨테이너 내부 데이터 전체 비교를 의미하지 않는다.
 
 PC 재부팅·설정/DB/Auth 변경·추가 백업·삭제·원격 업로드 없음. 승인된 앱 종료 동안 해당 Docker 서비스들은 잠시 중단됐다가 기존 컨테이너로 돌아왔다. 결과만 기존 기록에 남기고 diff --check 후 선별 로컬 커밋한다. 복원은 직전 기록과 Git 파일별 비교이며, 실제 복구 검수/컨테이너 내부 기능 검증은 별도로 판단한다. Docker 종료/재시작 검수는 통과, 실제 운영 Auth 백업 복원 검수 등 잔여 업무는 별도다.
+### 2026-10-09 PC 재부팅 후 인증 복원 검수 재개
+
+사용자가 PC 재부팅을 마치고 잔여 작업 진행을 요청했다. Docker Desktop 4.94의 Linux 엔진 29.8.2 응답과 기존 컨테이너 5개의 재가동을 확인했다. 기존 synthetic Supabase는 다른 프로젝트 경로 소속이므로 복원 대상으로 사용하지 않는다. CRM 4317 loopback 서버를 다시 시작해 HTTP 200·익명 /api/me 401을 확인했다. PC 재부팅 전 Chrome 로그인 상태가 그대로 유지됐다고 주장하지 않는다. 앞서 완료한 실제 토큰 만료 검수는 재실행하지 않았다.
+
+tools/auth-backup.mjs와 tests/auth-backup.test.mjs를 추가해 사용자 직접 DB 비밀번호 입력용 loopback 4323 화면을 준비했다. 정확한 Host/Origin·일회용 nonce·입력 크기를 확인하고 비밀번호는 CLI 자식 환경변수로만 전달한다. 비밀번호를 명령 인자·로그·저장소에 기록하지 않으며, 운영 DB는 읽기 전용 roles/schema/data SQL 내보내기 대상으로만 사용한다. 백업 디렉터리는 D sources/auth-backup-20261009에 준비하고 상속을 차단해 현재 사용자·SYSTEM·Administrators에만 접근을 허용했다. 아직 실제 자격증명 연결과 SQL 생성은 실행되지 않았다. 무료 Session pooler를 사용하며 유료 API 호출·운영 DB/Auth 변경은 없다.
+
+새 검증: Node 전용 테스트 3/3, 도구 문법 검사, 실제 HTTP의 다른 Origin 403·잘못된 nonce 400 및 거부 후 ready 상태를 확인했다. Chrome Personal_Candy의 입력 화면을 열어 사용자에게 전달했다. DB 비밀번호 직접 입력이 필요한 상태이며, 실제 백업·별도 로컬 Auth 복원·복원 계정 로그인은 미완료다. 공식 restore-from-platform/backup-restore 문서와 CLI 2.120.0 도움말을 참고했다. 변경 로그 목록을 조회했지만 모든 관련 변경의 영향 검토를 완료했다고 주장하지 않는다.
+
+보존: 운영 DB/Auth, 기존 synthetic 컨테이너와 다른 프로젝트, 기존 Docker 보존 폴더, CRM 앱 소스·SQL·기존 검수 결과를 유지했다. 새 SQL 백업은 아직 없고 추가 Docker 백업도 만들지 않았다. 도구·전용 검사·이 기록·개발 보고서만 선별 로컬 커밋하며 원격 없음·push/배포 없음. 복원 방법은 17ee403과 이번 파일만 비교하고, 검수 종료 시 정확한 4323 도구 프로세스만 종료하는 것이다. 다음 작업은 사용자 입력 후 생성 파일의 크기/체크섬 확인, 기존 DB와 분리된 환경 복원, 사용자 직접 로그인 검수다.
