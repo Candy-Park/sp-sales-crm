@@ -10,9 +10,27 @@ class Node{
 const ids=['outlook-message','outlook-status','outlook-start','outlook-list','outlook-prev','outlook-next','outlook-inquiry','outlook-inquiry-prev','outlook-inquiry-next','outlook-review','outlook-subject','outlook-meta','outlook-body','outlook-link-form','outlook-linked-open','outlook-new-title','outlook-customer','outlook-customer-name','nav-outlook','outlook-reload','outlook-link-save','outlook-link-mode','detail-mails','outlook-filter','outlook-triage','outlook-triage-note'];
 ids.push('mobile-outlook','outlook-review-sync','outlook-category-filter','outlook-classification-filter','outlook-proposal','outlook-label','outlook-role','outlook-category','outlook-classify','outlook-classification-section');
 ids.push('outlook-workflow','outlook-workflow-preview');
+ids.push('outlook-handling-summary');
 function fixture(){const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));return {nodes,document:{getElementById:id=>nodes[id],createElement:tag=>new Node(tag)}};}
 const mail=(id,body='SYNTHETIC <script>原文 😀')=>({id,state:'pending',excluded:false,triage_revision:1,subject:id,occurred_at:'2026-10-06T12:00:00Z',direction:'received',original:{body,sender:'synthetic@example.test',recipients:'synthetic@example.test',attachments:[]}});
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+test('reviewed mail filter displays user customer correction and reply owner without any writes; reset clears it',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{const calls=[],handling={case_id:'M20-11',category:'고객 업무',role:'고객사',include:true,reason:'사용자 담당 고객 업무',reply_note:'주된 회신 담당: SYNTHETIC'};
+ const out=setup(f,async(path,method)=>{calls.push({path,method});if(path==='/api/outlook/A')return {mail:{...mail('A'),proposal:{role:'HQ',category:'HQ 업무'}}};if(path.includes('view=reviewed'))return {mails:[{...mail('A'),handling}],hasMore:false,summary:{reviewed:20,business:7,skipped:13}};return base(path);});
+ f.nodes['outlook-filter'].value='reviewed';f.nodes['outlook-filter'].listeners.change();await flush();
+ assert.match(f.nodes['outlook-handling-summary'].textContent,/담당 업무 7건/);assert.match(f.nodes['outlook-list'].children[0].children[1].textContent,/고객 업무/);
+ await f.nodes['outlook-list'].children[0].children[0].listeners.click();assert.equal(f.nodes['outlook-category'].value,'고객 업무');assert.match(f.nodes['outlook-label'].textContent,/주된 회신 담당/);assert.equal(calls.some(c=>c.method),false);
+ out.reset();assert.equal(f.nodes['outlook-handling-summary'].textContent,'');assert.equal(f.nodes['outlook-label'].textContent,'');
+ }finally{globalThis.document=old;}
+});
+test('registration-skipped handling hides inquiry creation while keeping the original readable',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{setup(f,async path=>path==='/api/outlook/A'?{mail:mail('A')}:path.includes('registration-skipped')?{mails:[{...mail('A'),handling:{case_id:'M20-05',include:false,category:null,role:null,reason:'사용자 담당 범위 밖',reply_note:''}}],hasMore:false}:base(path));
+ f.nodes['outlook-filter'].value='registration-skipped';f.nodes['outlook-filter'].listeners.change();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();
+ assert.equal(f.nodes['outlook-link-form'].hidden,true);assert.equal(f.nodes['outlook-body'].textContent,mail('A').original.body);
+ }finally{globalThis.document=old;}
+});
 const status={running:false,total:2,pending:2,held:0,receipted:0};
 function setup(f,api){return initOutlook({api,message:(id,text)=>f.nodes[id].textContent=text,show(){},open:async()=>{}});}
 function base(path){if(path==='/api/outlook/local')return status;if(path==='/api/lookups')return {customers:[]};if(path.startsWith('/api/inquiries'))return {inquiries:[],hasMore:false};return {mails:[mail('A'),mail('B')],hasMore:false};}

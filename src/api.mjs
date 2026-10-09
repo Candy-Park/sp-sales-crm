@@ -2,6 +2,7 @@ import {id,writeInput} from './write-input.mjs';
 import {productQuery,searchProducts,linkInput} from './products.mjs';
 import {communicationInput} from './communication.mjs';
 import {outlookInput,classificationCategories} from './outlook.mjs';
+import {reviewedMailPage} from './outlook-handling.mjs';
 const projectUrl='https://glscckjmlwvxilzneqdf.supabase.co';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function reply(status, body) {
@@ -105,6 +106,18 @@ export async function handleApi(request, env, fetcher=fetch) {
       if(!/^\d{1,7}$/.test(offset))return reply(400,{error:'페이지를 확인해주세요.'});
       const filter={};if(query.has('inquiry_id')){try{filter.inquiry_id='eq.'+id(query.get('inquiry_id'));}catch{return reply(400,{error:'문의 식별자를 확인해주세요.'});}}
       if(!outlookDetail){
+        const reviewedView=query.get('view');
+        if(['reviewed','registration-skipped'].includes(reviewedView)){
+          const category=query.get('category')??'all',state=query.get('classification')??'all';
+          if(!['all','미분류',...classificationCategories].includes(category)||!['all','none','proposed','confirmed'].includes(state))return reply(400,{error:'분류 조회 조건을 확인해주세요.'});
+          if(!env.localHandling)return reply(503,{error:'이 PC의 사용자 확인 기준 연결이 필요합니다.'});
+          const decisions=await env.localHandling(user.id);
+          if(!Array.isArray(decisions)||!decisions.length||decisions.length>1000||!decisions.every(d=>uuid.test(d.id)))throw Error('Review unavailable');
+          const ids='in.('+decisions.map(d=>d.id).join(',')+')';
+          const owned=await read('sales_outlook_mail','id,scope_key,source_key,payload_hash',{id:ids,limit:'1000'});
+          const classified=await read('sales_outlook_classified','id,direction,subject,occurred_at,state,inquiry_id,body_length,created_at,excluded,triage_revision,proposal,label,classification_revision,category_group,classification_state',{id:ids,limit:'1000'});
+          return reply(200,reviewedMailPage(classified,owned,decisions,{view:reviewedView,offset:Number(offset),category,state}));
+        }
         const view=query.get('view')??'active';if(!['active','excluded','all'].includes(view))return reply(400,{error:'메일 목록을 확인해주세요.'});if(view!=='all')filter.excluded='eq.'+(view==='excluded');
         const category=query.get('category')??'all',state=query.get('classification')??'all';
         if(!['all','미분류',...classificationCategories].includes(category)||!['all','none','proposed','confirmed'].includes(state))return reply(400,{error:'분류 조회 조건을 확인해주세요.'});
