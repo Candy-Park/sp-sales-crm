@@ -439,3 +439,5 @@ Auth/Storage 현재 집계: 사용자 1·identity 1·session 12·Storage bucket 
 새 검증: 선정 20개 source key·conversation key 각각 유일, 이전 독립 10개 대화 overlap 0, 선정 원문 전체 해시 20/20 일치, 검토 Markdown 사례 20개 확인. SQLite 전체 mail_outbox/capture_state/agent_binding 행 집계 SHA-256이 조회 전후 및 새 연결 재조회에서도 일치하고 integrity=ok, 원문/영수증 각 342건 유지. ignored notes 2파일의 Git 제외를 확인했다. 외부 AI 호출·CRM 변경·메일 발송/이동/삭제·첨부 열기·새 백업 각각 0. 기존 로그인/DB/Auth·운영 동결 앱 소스·독립 평가 표본을 유지한다.
 
 이번 Git 변경은 업무 검수 사례의 선정 범위와 이 작업 기록만 선별 로컬 커밋한다. 앱 구현 변경이 아니므로 개발 보고서에 기능 구현 결과를 새로 추가하지 않고 앱 빌드/전체 테스트도 반복하지 않았다. git diff --check와 위 원본 보존/선정 검증을 수행한다. 원격 없음·push/배포 없음. 문서는 시작 커밋과 파일별 비교해 복원하며 private 선정 자료/원문을 삭제하지 않는다. 다음은 사용자 실제 정답 분류·상대 역할·기대 업무 확인(2단계)이며, 선정 완료를 의미 정확도 검수 통과로 보고하지 않는다.
+
+2026-10-09 검수 화면 전달 후속: 사용자가 확인할 상황을 열어달라고 요청해 ignored Markdown의 동일 20사례를 private 로컬 HTML로 렌더링했다. 정확한 HTML 하나만 GET으로 제공하는 loopback 4326 서버를 준비했고 HTTP 200·article 20개·127.0.0.1 listener를 확인했다. 외부 리소스/스크립트/폼 제출을 CSP로 차단하며 다른 파일·운영 API를 제공하지 않는다. Chrome에서 20개 사례와 실제 분류·역할·기대 업무 확인 안내를 확인하고 결과 탭을 유지했다. 정답 입력/확정·CRM/원문 변경·외부 AI 호출은 없다. private HTML/서버 helper는 Git에 넣지 않고 이 전달 기록만 선별 로컬 커밋한다. 사용자 의미 확인은 아직 대기다.
