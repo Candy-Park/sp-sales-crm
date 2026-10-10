@@ -14,3 +14,10 @@ test('held original does not show a missing or remotely copied body',()=>{
  try{const root=new Node('section');renderTaskDetail(root,{state:'held',original:{sender:'SYNTHETIC',recipients:'SYNTHETIC',body:'MUST NOT SHOW',attachments:[]}},()=>{});const text=flatten(root).map(n=>n.textContent||'').join(' ');assert.doesNotMatch(text,/MUST NOT SHOW/);assert.match(text,/로컬 원문/);
  }finally{globalThis.document=previous;}
 });
+
+test('task detail offers an explicit CRM connection without saving on render',()=>{
+ const previous=globalThis.document;globalThis.document={createElement:tag=>new Node(tag)};
+ try{const root=new Node('section');let called=0;renderTaskDetail(root,{subject:'SYNTHETIC',handling:{include:true}},()=>{},()=>called++);
+  assert.equal(called,0);const button=flatten(root).find(n=>n.tagName==='button'&&n.textContent==='CRM 문의 연결 · 열기');assert.ok(button);button.listeners.click();assert.equal(called,1);
+ }finally{globalThis.document=previous;}
+});

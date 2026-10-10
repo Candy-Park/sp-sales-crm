@@ -43,10 +43,34 @@ function showHome(){work.show(currentView==='dashboard'?'dashboard':'outlook');}
 async function openTask(id){
  const listed=taskMails.get(id);if(!listed)return;const sequence=++taskSequence;
  try{const {mail}=await api('/api/outlook/'+id);if(sequence!==taskSequence)return;
-  renderTaskDetail(taskDetail,{...mail,handling:listed.handling},()=>{showHome();if(currentView==='dashboard')void dashboard();});el('dashboard-view').hidden=true;view.hidden=false;taskDetail.hidden=false;memoQuick.hidden=true;board.hidden=true;heading.hidden=true;intro.hidden=true;mailDetails.hidden=true;el('outlook-review').hidden=true;taskDetail.scrollIntoView({block:'start',behavior:'smooth'});
+  renderTaskDetail(taskDetail,{...mail,handling:listed.handling},()=>{showHome();if(currentView==='dashboard')void dashboard();},async()=>{
+   if(!connection.isConnected()){connection.show();return;}
+   try{
+    const {mail:saved}=await connection.api('/api/outlook/'+id);
+    if(sequence!==taskSequence)return;
+    if(saved.state==='linked'&&saved.inquiry_id){await work.open(saved.inquiry_id);return;}
+    work.show('outlook');board.hidden=true;heading.hidden=true;intro.hidden=true;mailDetails.hidden=true;memoQuick.hidden=true;
+    await work.reviewMail(id);
+   }catch(error){message('outlook-message',error.message,true);}
+  });el('dashboard-view').hidden=true;view.hidden=false;taskDetail.hidden=false;memoQuick.hidden=true;board.hidden=true;heading.hidden=true;intro.hidden=true;mailDetails.hidden=true;el('outlook-review').hidden=true;taskDetail.scrollIntoView({block:'start',behavior:'smooth'});
  }catch(error){if(sequence===taskSequence)message('outlook-message',error.message,true);}
 }
-const outlookApi=async(path,method,body)=>{const url=new URL(path,'http://127.0.0.1:4327');if(url.pathname==='/api/outlook'&&url.searchParams.has('inquiry_id')){const data=await connection.api(path,method,body);for(const mail of data.mails)protectedMailIds.add(mail.id);return data;}if(protectedMailIds.has(url.pathname.split('/').at(-1)))return connection.api(path,method,body);return api(path,method,body);};
+const outlookApi=async(path,method,body)=>{
+ const url=new URL(path,'http://127.0.0.1:4327'),parts=url.pathname.split('/'),mailId=parts[3];
+ if(url.pathname==='/api/outlook'&&url.searchParams.has('inquiry_id')){const data=await connection.api(path,method,body);for(const mail of data.mails)protectedMailIds.add(mail.id);return data;}
+ if(connection.isConnected()&&url.pathname==='/api/outlook'&&url.searchParams.get('view')==='reviewed'){
+  const local=await api(path),saved=await connection.api(path),byId=new Map(local.mails.map(m=>[m.id,m]));
+  for(const mail of saved.mails){mail.work_review=byId.get(mail.id)?.work_review;protectedMailIds.add(mail.id);}return saved;
+ }
+ if(connection.isConnected()&&['/api/lookups','/api/inquiries'].includes(url.pathname))return connection.api(path,method,body);
+ if(connection.isConnected()&&mailId&&(protectedMailIds.has(mailId)||taskMails.get(mailId)?.handling?.include)){
+  const data=await connection.api(path,method,body);
+  // VPN mail is linked to a summary inquiry, never copied into a new inquiry.
+  if(data.mail&&taskMails.get(mailId)?.handling?.case_id==='M20-10')data.mail.original={...data.mail.original,body:'VPN 관련 원문은 보안상 표시하지 않습니다. 자격증명이 없는 요약 문의를 만든 뒤 기존 문의에 연결하세요.'};
+  return data;
+ }
+ return api(path,method,body);
+};
 work=initWorkspace(connection.api,dashboard,message,{preserveLocal:true,onShow:viewChanged,outlook:{api:outlookApi,onList:(mails,listView)=>{if(listView==='reviewed'){taskMails=new Map(mails.map(m=>[m.id,m]));renderTaskBoard(board,mails,openTask);counts();}}}});
 for(const [id,label,category] of [['nav-customer','고객 업무','고객 업무'],['nav-hq','HQ 업무','HQ 업무']]){const button=document.createElement('button');button.id=id;button.type='button';button.className='nav-button';button.textContent=label;el('nav-register').before(button);button.addEventListener('click',()=>{el('outlook-category-filter').value=category;work.show('outlook');el('outlook-filter').value='reviewed';el('outlook-filter').dispatchEvent(new Event('change'));el('outlook-category-filter').dispatchEvent(new Event('change'));});}
 el('nav-dashboard').textContent='홈 대시보드';el('nav-register').textContent='문의 등록';el('nav-history').textContent='문의 조회 · 종료 이력';
@@ -56,7 +80,7 @@ const memoApi=async(path,method='GET',body)=>{const response=await fetch(path,{m
 const memos=initMemos({quickRoot:memoQuickForm,pageRoot:memoPage,api:memoApi});
 const memoMenu=document.createElement('button');memoMenu.id='nav-memos';memoMenu.className='nav-button';memoMenu.textContent='메모';memoMenu.type='button';document.querySelector('.side-nav').append(memoMenu);memoMenu.addEventListener('click',()=>{work.show('outlook');currentView='memos';memoPage.hidden=false;memoQuick.hidden=true;for(const element of [board,heading,intro,mailDetails])element.hidden=true;for(const nav of document.querySelectorAll('.side-nav .nav-button'))nav.classList.toggle('active',nav===memoMenu);void memos.load();});
 window.addEventListener('beforeunload',event=>{if(memos.hasDraft()){event.preventDefault();event.returnValue='';}});
-const blocked=['outlook-start','outlook-review-sync','outlook-workflow','outlook-classify','outlook-link-save','outlook-triage','outlook-linked-open'];
+const blocked=['outlook-start','outlook-review-sync','outlook-workflow','outlook-classify','outlook-triage'];
 const disable=()=>{for(const id of blocked)if(el(id)&&!el(id).disabled)el(id).disabled=true;};
 new MutationObserver(disable).observe(el('workspace'),{subtree:true,attributes:true,attributeFilter:['disabled']});disable();
 el('logout-button').hidden=true;work.show('dashboard');void dashboard();

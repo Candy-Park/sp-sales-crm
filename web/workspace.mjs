@@ -375,7 +375,7 @@ function initWorkspace(api, dashboard, message, workspaceOptions={}) {
       if (epoch === sessionGeneration) await open(i.id);
     });
   });
-  return { open, show, register, history, reset() {
+  return { open, show, register, history, reviewMail:id=>outlook.reviewMail(id), reset() {
     outlook.reset();
     products.reset();
     communication.reset();

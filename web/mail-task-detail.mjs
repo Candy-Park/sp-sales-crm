@@ -1,8 +1,9 @@
-export function renderTaskDetail(root,mail,onBack){
+export function renderTaskDetail(root,mail,onBack,onCRM){
  const node=(tag,text,className)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(className)n.className=className;return n;};
  const w=mail.work_review??{};root.replaceChildren();
  const back=node('button','← 할 일 목록으로','btn btn-outline-secondary');back.type='button';back.addEventListener('click',onBack);root.append(back);
  const header=node('header',null,'task-detail-heading');header.append(node('span',mail.handling?.category||'업무','task-category'),node('h1',w.task_title||mail.subject||'업무 상세'),node('span',w.status||'상태 확인 필요','task-state-badge'));root.append(header);
+ if(onCRM&&mail.handling?.include){const button=node('button','CRM 문의 연결 · 열기','btn btn-primary');button.type='button';button.addEventListener('click',onCRM);root.append(button);}
  const grid=node('div',null,'task-detail-grid'),main=node('div',null,'task-detail-main'),aside=node('aside',null,'task-detail-side');
  const section=(title,text,className='')=>{const card=node('section',null,`task-panel ${className}`);card.append(node('h2',title),node('p',text||'확인되지 않았습니다.'));return card;};
  const next=section('지금 해야 할 일',w.next_action,'task-next-action');

@@ -25,3 +25,47 @@ test('CRM bridge exposes only validated public config and preserves original API
  const handler=async()=>Response.json({error:'SYNTHETIC denied'},{status:403});
  assert.equal((await run('/api/crm/dashboard','GET',{authorization:'Bearer SYNTHETIC'},'',handler)).status,403);
 });
+
+test('only owner-verified reviewed business mail can use the existing link RPC',async()=>{
+ const mailId='11111111-1111-4111-8111-111111111111';
+ let linked=0,verified=false;
+ env.localHandling=async()=>[];
+ const handler=async request=>{
+  const url=new URL(request.url);
+  if(request.method==='GET'){
+   assert.equal(url.pathname,'/api/outlook');assert.equal(url.searchParams.get('view'),'reviewed');verified=true;
+   return Response.json({mails:[{id:mailId,state:'pending',excluded:false,handling:{include:true}}],hasMore:false});
+  }
+  assert.ok(verified);linked++;assert.equal(url.pathname,`/api/outlook/${mailId}/link`);
+  return Response.json({result:'SYNTHETIC'}, {status:201});
+ };
+ try{
+  const headers={authorization:'Bearer SYNTHETIC',origin,'content-type':'application/json'};
+  assert.equal((await run(`/api/crm/outlook/${mailId}/link`,'POST',headers,'{"inquiry_id":"SYNTHETIC"}',handler)).status,201);
+  assert.equal(linked,1);
+  assert.equal((await run('/api/crm/outlook/22222222-2222-4222-8222-222222222222/link','POST',headers,'{}',handler)).status,403);
+  const held=async()=>Response.json({mails:[{id:mailId,state:'held',excluded:false,handling:{include:true}}],hasMore:false});
+  assert.equal((await run(`/api/crm/outlook/${mailId}/link`,'POST',headers,'{}',held)).status,403);
+  for(const mail of [{state:'pending',excluded:true,handling:{include:true}},{state:'pending',excluded:false,handling:{include:false}}]){
+   const denied=async()=>Response.json({mails:[{id:mailId,...mail}],hasMore:false});
+   assert.equal((await run(`/api/crm/outlook/${mailId}/link`,'POST',headers,'{}',denied)).status,403);
+  }
+  const missing=async()=>Response.json({error:'denied'},{status:401});
+  assert.equal((await run(`/api/crm/outlook/${mailId}/link`,'POST',headers,'{}',missing)).status,401);
+  assert.equal((await run(`/api/crm/outlook/${mailId}/classification`,'POST',headers,'{}',handler)).status,404);
+  assert.equal((await run(`/api/crm/outlook/${mailId}/link`,'POST',{...headers,origin:'http://foreign'},'{}',handler)).status,403);
+  assert.equal(linked,1);
+ }finally{delete env.localHandling;}
+});
+
+test('VPN reviewed mail cannot copy credentials into a newly registered inquiry',async()=>{
+ env.localHandling=async()=>[];let writes=0;const mailId='11111111-1111-4111-8111-111111111111';
+ const handler=async request=>{if(request.method==='GET')return Response.json({mails:[{id:mailId,state:'pending',excluded:false,handling:{include:true,case_id:'M20-10'}}],hasMore:false});writes++;return Response.json({result:'SYNTHETIC'});};
+ try{const response=await run(`/api/crm/outlook/${mailId}/link`,'POST',{authorization:'Bearer SYNTHETIC',origin,'content-type':'application/json'},'{"registration":{}}',handler);assert.equal(response.status,422);assert.equal(writes,0);}finally{delete env.localHandling;}
+});
+
+test('VPN original is redacted on the server even when the browser category changes',async()=>{
+ const mailId='11111111-1111-4111-8111-111111111111';env.redactedMailIds=new Set([mailId]);
+ const handler=async()=>Response.json({mail:{id:mailId,subject:'SYNTHETIC VPN',original:{body:'SYNTHETIC PRIVATE MUST NOT RETURN',attachments:[]}}});
+ try{const result=await run(`/api/crm/outlook/${mailId}`,'GET',{authorization:'Bearer SYNTHETIC'},'',handler);assert.equal(result.status,200);assert.doesNotMatch(JSON.stringify(result.result),/MUST NOT RETURN/);assert.match(result.result.mail.original.body,/표시하지 않습니다/);}finally{delete env.redactedMailIds;}
+});
