@@ -22,13 +22,13 @@ export function renderTaskBoard(root,mails,onOpen){
   const list=node('ul',null,'task-cards');
   for(const mail of groups[key]){
    const w=mail.work_review,card=node('li',null,'task-card');
-   card.append(node('span',mail.handling?.category||'업무','task-category'));
+   const top=node('div',null,'task-card-top');top.append(node('span',mail.handling?.category||'업무','task-category'),node('span',w?.status||'상태 확인 필요','task-state-badge'));card.append(top);
    card.append(node('h3',w?.task_title||mail.subject||'업무 상태 확인'));
    const meta=node('div',null,'task-meta');
    meta.append(node('strong',w?.task_date_label||'기한 미지정'));
    if(w?.task_owner)meta.append(node('span',w.task_owner));
    card.append(meta,node('p',w?.task_note||'메일 근거를 추가 확인해야 합니다.','task-note'));
-   const button=node('button','관련 메일 · 판단 근거 보기','btn btn-outline-secondary');button.type='button';button.addEventListener('click',()=>onOpen(mail.id));card.append(button);list.append(card);
+   const button=node('button','업무 상세 보기 →','btn btn-outline-secondary');button.type='button';button.addEventListener('click',()=>onOpen(mail.id));card.append(button);list.append(card);
   }
   if(!groups[key].length)list.append(node('li','등록된 항목이 없습니다.','section-hint'));
   section.append(list);root.append(section);
