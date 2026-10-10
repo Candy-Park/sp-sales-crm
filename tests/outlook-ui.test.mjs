@@ -14,6 +14,14 @@ ids.push('outlook-handling-summary');
 function fixture(){const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));return {nodes,document:{getElementById:id=>nodes[id],createElement:tag=>new Node(tag)}};}
 const mail=(id,body='SYNTHETIC <script>原文 😀')=>({id,state:'pending',excluded:false,triage_revision:1,subject:id,occurred_at:'2026-10-06T12:00:00Z',direction:'received',original:{body,sender:'synthetic@example.test',recipients:'synthetic@example.test',attachments:[]}});
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+test('mail evidence review displays shipment separately from delivery and preserves read-only review',async()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{const calls=[],work_review={status:'부분 출하',evidence:'8개 출하 확인 · 잔여 16개',next_action:'잔여 출하 일정 추적',schedule:'2027-01-05 요청 일정',basis:'수신/발신 대조',limitation:'고객 수령은 미확인'};
+ setup(f,async(path,method)=>{calls.push(method);if(path==='/api/outlook/A')return {mail:{...mail('A'),work_review}};if(path.startsWith('/api/outlook?'))return {mails:[{...mail('A'),work_review}],hasMore:false};return base(path);});
+ f.nodes['nav-outlook'].listeners.click();await flush();assert.match(f.nodes['outlook-list'].children[0].children[1].textContent,/부분 출하/);
+ await f.nodes['outlook-list'].children[0].children[0].listeners.click();assert.match(f.nodes['outlook-workflow-preview'].textContent,/고객 수령은 미확인/);assert.match(f.nodes['outlook-workflow-preview'].textContent,/잔여 16개/);assert.equal(calls.some(Boolean),false);
+ }finally{globalThis.document=old;}
+});
 test('business category controls offer customer and HQ only while preserving exclusion views',()=>{
  const f=fixture(),old=globalThis.document;globalThis.document=f.document;
  try{setup(f,base);

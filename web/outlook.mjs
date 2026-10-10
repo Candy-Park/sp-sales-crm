@@ -38,6 +38,7 @@ export function initOutlook({api,message,show,open}){
         hint.textContent=`${mail.direction==='sent'?'보낸':'받은'} · ${seoul(mail.occurred_at)} · ${mail.excluded?'업무 제외 · ':''}${mail.state==='held'?'보류: 긴 본문 로컬 원문 보존':mail.state==='linked'?'문의 연결됨':'검토 대기'}`;
         if(!mail.handling)hint.textContent+=mail.label?` · 사용자 확정: ${mail.label.role} / ${mail.label.category}`:mail.proposal?` · 제안·미확정: ${mail.proposal.role} / ${mail.proposal.category}`:' · 분류 없음';
         if(mail.handling)hint.textContent+=` · ${mail.handling.case_id} · 사용자 기준: ${mail.handling.category??'등록 여부 확인'} · ${mail.handling.reason}${mail.handling.reply_note?' · '+mail.handling.reply_note:''}`;
+        if(mail.work_review)hint.textContent+=` · 처리 상태: ${mail.work_review.status} · ${mail.work_review.next_action}`;
         li.append(button,hint);el('outlook-list').append(li);
       }
       if(!data.mails.length)el('outlook-list').textContent='이 페이지에 수집 메일이 없습니다.';
@@ -65,6 +66,7 @@ export function initOutlook({api,message,show,open}){
         el('outlook-role').value=handling.role??l?.role??'';el('outlook-category').value=handling.category??l?.category??'';
       }
       el('outlook-review').hidden=false;el('outlook-subject').textContent=mail.subject||'(제목 없음)';
+      if(mail.work_review){const w=mail.work_review;el('outlook-workflow-preview').textContent=`처리 상태: ${w.status}\n확인 근거: ${w.evidence}\n다음 할 일: ${w.next_action}\n기한/일정: ${w.schedule}\n확인 기준: ${w.basis}\n${w.limitation}`;}
       el('outlook-review').scrollIntoView?.({block:'start',behavior:'smooth'});
       el('outlook-meta').textContent=`${mail.original.sender} → ${mail.original.recipients} · ${seoul(mail.occurred_at)} · 첨부 메타데이터 ${mail.original.attachments.length}개`;
       el('outlook-body').textContent=mail.state==='held'?`본문 ${mail.body_length.toLocaleString()}자. 본문 전체는 이 PC의 승인된 Outlook sources/outbox.sqlite에 보존되어 있으며 서버로 보내지 않았습니다. 문의 연결은 보류합니다.`:mail.original.body;
