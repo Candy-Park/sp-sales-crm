@@ -1,8 +1,10 @@
+import {handleCRMBridge} from '../src/crm-preview-bridge.mjs';
 import {createServer} from 'node:http';
 import {readFile,mkdir} from 'node:fs/promises';
 import {reviewedMailPage} from '../src/outlook-handling.mjs';
 import {openMemoStore} from '../src/local-memos.mjs';
 import {handleLocalMemos} from '../src/local-memo-api.mjs';
+const config={SUPABASE_URL:process.env.SUPABASE_URL??'https://glscckjmlwvxilzneqdf.supabase.co',SUPABASE_PUBLISHABLE_KEY:process.env.SUPABASE_PUBLISHABLE_KEY??''};
 const origin='http://127.0.0.1:4327';
 const directory='D:/AI/projects/sp-sales-crm/scratch/handling-preview-20261009/';
 const snapshot=JSON.parse(await readFile(directory+'snapshot.json','utf8'));
@@ -13,11 +15,12 @@ const memos=openMemoStore(memoDirectory+'memos.sqlite');
 reviewedMailPage(snapshot.classified,snapshot.owned,snapshot.decisions,{view:'reviewed',offset:0});
 const files=new Map([['/',[directory+'index.html','text/html; charset=utf-8']],['/app.js',[directory+'app.js','text/javascript; charset=utf-8']],['/style.css',['dist/style.css','text/css']],['/bootstrap.css',['dist/bootstrap.css','text/css']],['/assets/sp-logo-transparent.png',['dist/assets/sp-logo-transparent.png','image/png']]]);
 createServer(async(req,res)=>{
- res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'");
+ res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://glscckjmlwvxilzneqdf.supabase.co; frame-ancestors 'none'; form-action 'none'; base-uri 'none'");
  const json=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(value));};
  if(req.headers.host!=='127.0.0.1:4327'||(req.headers.origin&&req.headers.origin!==origin)){json(403,{error:'허용되지 않은 요청입니다.'});return;}
  try{
   const url=new URL(req.url,origin),path=url.pathname;
+  if(await handleCRMBridge(req,res,path,config,origin))return;
   if(await handleLocalMemos(req,res,path,memos,origin))return;
   if(req.method!=='GET'){json(405,{error:'메일과 업무 조회는 읽기 전용입니다.'});return;}
   if(path==='/api/outlook/local'){json(200,snapshot.status);return;}

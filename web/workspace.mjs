@@ -10,8 +10,8 @@ function seoulInput(iso) {
   return iso ? new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(iso)).replace(" ", "T") : "";
 }
 const toIso = (value) => value ? (value.length === 16 ? value + ":00" : value) + "+09:00" : null;
-function initWorkspace(api, dashboard, message) {
-  const outlook=initOutlook({api,message,show,open});
+function initWorkspace(api, dashboard, message, workspaceOptions={}) {
+  const outlook=initOutlook({api,message,show,open,...workspaceOptions.outlook});
   const products=initProducts({api,message});
   let lookups = { customers: [], contacts: [], projects: [] }, selected = null, registerId = crypto.randomUUID(), actionId = crypto.randomUUID(), offset = 0, viewGeneration = 0, sessionGeneration = 0, currentDetailId = null;
   let requiredActions=0;
@@ -35,6 +35,7 @@ function initWorkspace(api, dashboard, message) {
     viewGeneration++;
     if(view!=='detail')communication.deactivate();
     for (const name of ["dashboard", "register", "history", "detail", "outlook"]) el(name + "-view").hidden = name !== view;
+    workspaceOptions.onShow?.(view);
   }
   function lookupOptions() {
     options("customer-select", lookups.customers, "신규 고객사 입력");
@@ -374,7 +375,7 @@ function initWorkspace(api, dashboard, message) {
       if (epoch === sessionGeneration) await open(i.id);
     });
   });
-  return { open, reset() {
+  return { open, show, register, history, reset() {
     outlook.reset();
     products.reset();
     communication.reset();
@@ -386,10 +387,12 @@ function initWorkspace(api, dashboard, message) {
     registerId = crypto.randomUUID();
     actionId = crypto.randomUUID();
     offset = 0;
-    for (const button of document.querySelectorAll("#workspace button")) button.disabled = false;
+    const scope=workspaceOptions.preserveLocal?'#dashboard-view,#register-view,#history-view,#detail-view':'#workspace';
+    const scoped=selector=>[...document.querySelectorAll(scope)].flatMap(root=>[...root.querySelectorAll(selector)]);
+    for (const button of scoped('button')) button.disabled = false;
     for (const id of ["history-prev", "history-next", "close-button"]) el(id).disabled = true;
-    for (const form of document.querySelectorAll("#workspace form")) form.reset();
-    for (const field of document.querySelectorAll("#workspace input:not([type=checkbox]),#workspace textarea")) field.value = "";
+    for (const form of scoped('form')) form.reset();
+    for (const field of scoped('input:not([type=checkbox]),textarea')) field.value = "";
     for (const list of ["history-list", "detail-actions", "party-editors"]) el(list).replaceChildren();
     for (const id of ["detail-original", "detail-heading", "detail-meta"]) el(id).textContent = "";
     for (const id of ["register-message", "detail-message", "action-message", "close-message", "history-message"]) message(id, "");
