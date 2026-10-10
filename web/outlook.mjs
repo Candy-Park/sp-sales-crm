@@ -1,13 +1,14 @@
-import {classificationRoles,classificationCategories} from '../src/outlook.mjs';
+import {classificationRoles} from '../src/outlook.mjs';
+const businessCategories=['고객 업무','HQ 업무'];
 const el=id=>document.getElementById(id);
 const seoul=value=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'short',timeStyle:'short'}).format(new Date(value));
 export function initOutlook({api,message,show,open}){
   let epoch=0,offset=0,view='active',selected=null,registrationId=crypto.randomUUID(),timer=null,inquiryOffset=0,reviewSequence=0,listSequence=0;
   const option=(value,label)=>{const node=document.createElement('option');node.value=value;node.textContent=label;return node;};
   let category='all',classification='all',labelRequest=null,listedHandling=new Map();
-  el('outlook-category-filter').replaceChildren(option('all','전체 업무 분류'),option('미분류','미분류'),...classificationCategories.map(v=>option(v,v)));
+  el('outlook-category-filter').replaceChildren(option('all','전체 업무 분류'),...businessCategories.map(v=>option(v,v)));
   el('outlook-role').replaceChildren(option('','상대 관계 선택'),...classificationRoles.map(v=>option(v,v)));
-  el('outlook-category').replaceChildren(option('','업무 분류 선택'),...classificationCategories.map(v=>option(v,v)));
+  el('outlook-category').replaceChildren(option('','업무 분류 선택'),...businessCategories.map(v=>option(v,v)));
   function classificationControls(disabled){for(const id of ['outlook-role','outlook-category','outlook-classify'])el(id).disabled=disabled;}
   const report=error=>message('outlook-message',error.message,true);
   function clearReview(){reviewSequence++;selected=null;labelRequest=null;el('outlook-review').hidden=true;for(const name of ['body','meta','subject','triage-note','proposal','label','workflow-preview'])el('outlook-'+name).textContent='';el('outlook-workflow').disabled=false;el('outlook-role').value='';el('outlook-category').value='';classificationControls(false);el('outlook-link-form').hidden=true;el('outlook-linked-open').hidden=true;el('outlook-triage').hidden=true;}
@@ -107,7 +108,7 @@ export function initOutlook({api,message,show,open}){
   el('outlook-classify').addEventListener('click',async()=>{
     const mail=selected,active=epoch,sequence=reviewSequence;if(!mail||el('outlook-classify').disabled)return;
     const role=el('outlook-role').value,category=el('outlook-category').value;
-    if(!classificationRoles.includes(role)||!classificationCategories.includes(category)){report(new Error('상대 관계와 검토한 업무 분류를 선택해주세요.'));return;}
+    if(!classificationRoles.includes(role)||!businessCategories.includes(category)){report(new Error('상대 관계와 고객 업무 또는 HQ 업무를 선택해주세요.'));return;}
     const revision=mail.classification_revision??0;
     if(!labelRequest||labelRequest.role!==role||labelRequest.category!==category||labelRequest.revision!==revision)labelRequest={id:crypto.randomUUID(),revision,role,category};
     classificationControls(true);

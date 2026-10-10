@@ -14,6 +14,13 @@ ids.push('outlook-handling-summary');
 function fixture(){const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));return {nodes,document:{getElementById:id=>nodes[id],createElement:tag=>new Node(tag)}};}
 const mail=(id,body='SYNTHETIC <script>原文 😀')=>({id,state:'pending',excluded:false,triage_revision:1,subject:id,occurred_at:'2026-10-06T12:00:00Z',direction:'received',original:{body,sender:'synthetic@example.test',recipients:'synthetic@example.test',attachments:[]}});
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+test('business category controls offer customer and HQ only while preserving exclusion views',()=>{
+ const f=fixture(),old=globalThis.document;globalThis.document=f.document;
+ try{setup(f,base);
+ assert.deepEqual(f.nodes['outlook-category-filter'].children.map(n=>n.value),['all','고객 업무','HQ 업무']);
+ assert.deepEqual(f.nodes['outlook-category'].children.map(n=>n.value),['','고객 업무','HQ 업무']);
+ }finally{globalThis.document=old;}
+});
 test('reviewed mail filter displays user customer correction and reply owner without any writes; reset clears it',async()=>{
  const f=fixture(),old=globalThis.document;globalThis.document=f.document;
  try{const calls=[],handling={case_id:'M20-11',category:'고객 업무',role:'고객사',include:true,reason:'사용자 담당 고객 업무',reply_note:'주된 회신 담당: SYNTHETIC'};
@@ -95,12 +102,12 @@ test('filter change during post-link requery discards its original and navigatio
 
 test('classification retries keep identity, preserve inputs, and never exclude or link',async()=>{
  const f=fixture(),old=globalThis.document;globalThis.document=f.document;
- try{const writes=[];setup(f,async(path,method,body)=>{if(method){writes.push({path,body:structuredClone(body)});throw Error('Uncertain');}return path==='/api/outlook/A'?{mail:{...mail('A'),classification_revision:0,proposal:{role:'외부·관계 미확인',category:'스팸 의심·확인 필요',confidence:'낮음',evidence:['SYNTHETIC evidence']}}}:base(path);});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();f.nodes['outlook-role'].value='미확인';f.nodes['outlook-category'].value='스팸';await f.nodes['outlook-classify'].listeners.click();await f.nodes['outlook-classify'].listeners.click();assert.equal(writes.length,2);assert.deepEqual(writes[0],writes[1]);assert.equal(writes[0].path,'/api/outlook/A/classification');assert.equal(writes[0].body.revision,0);assert.equal(f.nodes['outlook-category'].value,'스팸');assert.equal(f.nodes['outlook-body'].textContent,mail('A').original.body);}finally{globalThis.document=old;}
+ try{const writes=[];setup(f,async(path,method,body)=>{if(method){writes.push({path,body:structuredClone(body)});throw Error('Uncertain');}return path==='/api/outlook/A'?{mail:{...mail('A'),classification_revision:0,proposal:{role:'외부·관계 미확인',category:'스팸 의심·확인 필요',confidence:'낮음',evidence:['SYNTHETIC evidence']}}}:base(path);});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();f.nodes['outlook-role'].value='미확인';f.nodes['outlook-category'].value='고객 업무';await f.nodes['outlook-classify'].listeners.click();await f.nodes['outlook-classify'].listeners.click();assert.equal(writes.length,2);assert.deepEqual(writes[0],writes[1]);assert.equal(writes[0].path,'/api/outlook/A/classification');assert.equal(writes[0].body.revision,0);assert.equal(f.nodes['outlook-category'].value,'고객 업무');assert.equal(f.nodes['outlook-body'].textContent,mail('A').original.body);}finally{globalThis.document=old;}
 });
 
 test('category filter and logout discard delayed classification, no private UI restoration',async()=>{
  const f=fixture(),old=globalThis.document;globalThis.document=f.document;
- try{let resolve;const paths=[];const out=setup(f,async(path,method)=>{paths.push(path);if(method)return new Promise(r=>resolve=r);return path==='/api/outlook/A'?{mail:{...mail('A'),classification_revision:0}}:base(path);});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();f.nodes['outlook-role'].value='미확인';f.nodes['outlook-category'].value='스팸';const pending=f.nodes['outlook-classify'].listeners.click();f.nodes['outlook-category-filter'].value='HQ 업무';f.nodes['outlook-category-filter'].listeners.change();await flush();assert.ok(paths.some(p=>decodeURIComponent(p).includes('category=HQ 업무')));out.reset();resolve({result:{revision:1}});await pending;assert.equal(f.nodes['outlook-body'].textContent,'');assert.equal(f.nodes['outlook-label'].textContent,'');assert.equal(f.nodes['outlook-review'].hidden,true);}finally{globalThis.document=old;}
+ try{let resolve;const paths=[];const out=setup(f,async(path,method)=>{paths.push(path);if(method)return new Promise(r=>resolve=r);return path==='/api/outlook/A'?{mail:{...mail('A'),classification_revision:0}}:base(path);});f.nodes['nav-outlook'].listeners.click();await flush();await f.nodes['outlook-list'].children[0].children[0].listeners.click();f.nodes['outlook-role'].value='미확인';f.nodes['outlook-category'].value='고객 업무';const pending=f.nodes['outlook-classify'].listeners.click();f.nodes['outlook-category-filter'].value='HQ 업무';f.nodes['outlook-category-filter'].listeners.change();await flush();assert.ok(paths.some(p=>decodeURIComponent(p).includes('category=HQ 업무')));out.reset();resolve({result:{revision:1}});await pending;assert.equal(f.nodes['outlook-body'].textContent,'');assert.equal(f.nodes['outlook-label'].textContent,'');assert.equal(f.nodes['outlook-review'].hidden,true);}finally{globalThis.document=old;}
 });
 
 
