@@ -9,6 +9,7 @@ param(
     [ValidateSet('Preview','Capture')][string]$Mode='Preview',
     [string]$OutputPath,
     [ValidateSet('both','received','sent')][string]$Direction='both',
+    [string]$ConversationKeysCsv='',
     [switch]$LibraryOnly
 )
 $ErrorActionPreference='Stop'
@@ -39,6 +40,18 @@ function Get-CrmSourceIdentity {
     if ([string]::IsNullOrWhiteSpace($crmRaw)) {throw 'Mail has no usable source identity.'}
     [pscustomobject]@{source_key=(Get-CrmHash ($ScopeKey+':'+$Direction+':'+$crmMethod+':'+$crmRaw));identity_method=$crmMethod}
 }
+function Get-CrmConversationSelection([string]$Csv) {
+    $crmSelection=[Collections.Generic.HashSet[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($Csv)) {
+        $crmValues=$Csv.Split(',')
+        if ($crmValues.Count -gt 50) {throw 'Conversation selection exceeds scope.'}
+        foreach ($crmValue in $crmValues) {
+            if ($crmValue -notmatch '^[0-9a-f]{64}$') {throw 'Hashed conversation identity required.'}
+            [void]$crmSelection.Add($crmValue)
+        }
+    }
+    return ,$crmSelection
+}
 function Get-CrmInternetMessageId($MailItem) {
     foreach ($crmTag in @('0x1035001F','0x1035001E')) {
         try {
@@ -53,6 +66,7 @@ function Get-CrmInternetMessageId($MailItem) {
     return ''
 }
 if ($LibraryOnly) {return}
+$crmConversationSelection=Get-CrmConversationSelection $ConversationKeysCsv
 if ([string]::IsNullOrWhiteSpace($StoreDisplayName)) {throw 'A specific Outlook mailbox is required.'}
 Assert-CrmCaptureWindow $Start $End
 if ([TimeZoneInfo]::Local.BaseUtcOffset.TotalMinutes -ne 540) {throw 'This collector requires the PC Asia/Seoul time zone.'}
@@ -87,6 +101,11 @@ foreach ($crmSpec in @(Get-CrmCaptureFolders $Direction)) {
         if ($crmItem.Class -ne 43) {$crmOther++;continue}
         $crmMailCount++;$crmTotal++
         if ($crmTotal -gt 5000) {throw 'Capture exceeds 5000 mails. No successful checkpoint was recorded.'}
+        # Match only approved conversation metadata before reading Body or attachments.
+        $crmConversation=[string]$crmItem.ConversationID
+        $crmConversationKey=$null
+        if (-not [string]::IsNullOrWhiteSpace($crmConversation)) {$crmConversationKey=Get-CrmHash ($crmScope+':conversation:'+$crmConversation)}
+        if ($crmConversationSelection.Count -gt 0 -and -not $crmConversationSelection.Contains($crmConversationKey)) {continue}
         $crmIdentity=Get-CrmSourceIdentity -ScopeKey $crmScope -Direction $crmSpec.Direction -InternetMessageId (Get-CrmInternetMessageId $crmItem) -EntryId ([string]$crmItem.EntryID)
         if ($crmIdentity.identity_method -eq 'entry_id_fallback') {$crmFallback++}
         if (-not $crmSeen.Add($crmIdentity.source_key)) {$crmDuplicate++}
@@ -96,9 +115,6 @@ foreach ($crmSpec in @(Get-CrmCaptureFolders $Direction)) {
                 $crmAttachment=$crmItem.Attachments.Item($crmIndex)
                 $crmAttachments.Add([pscustomobject]@{name=[string]$crmAttachment.FileName;size=[long]$crmAttachment.Size})
             }
-            $crmConversation=[string]$crmItem.ConversationID
-            $crmConversationKey=$null
-            if (-not [string]::IsNullOrWhiteSpace($crmConversation)) {$crmConversationKey=Get-CrmHash ($crmScope+':conversation:'+$crmConversation)}
             $crmOccurred=[datetime]$crmItem.($crmSpec.Date)
             $crmRecords.Add([pscustomobject]@{
                 source_key=$crmIdentity.source_key;identity_method=$crmIdentity.identity_method;direction=$crmSpec.Direction;

@@ -1,5 +1,6 @@
 import {handleApi} from './api.mjs';
 import {publicConfig} from './public-config.mjs';
+import {handleFollowups} from './crm-followups.mjs';
 export async function handleCRMBridge(req,res,path,env,origin,handler=handleApi){
  if(!path.startsWith('/api/crm/'))return false;
  const json=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(body));};
@@ -29,6 +30,10 @@ export async function handleCRMBridge(req,res,path,env,origin,handler=handleApi)
    if(payload.registration){json(422,{error:'VPN 원문은 새 문의에 복사하지 않습니다. 자격증명이 없는 요약 문의를 먼저 등록한 뒤 기존 문의에 연결하세요.'});return true;}
   }
   const target=new URL(req.url,origin);target.pathname=translated;
+  if(translated==='/api/followups'){
+   const response=await handleFollowups(new Request(target,{method:req.method,headers:req.headers,body}),env,handler);
+   res.writeHead(response.status,Object.fromEntries(response.headers));res.end(await response.text());return true;
+  }
   const response=await handler(new Request(target,{method:req.method,headers:req.headers,body}),env);
   const mailDetail=req.method==='GET'&&/^\/api\/outlook\/([0-9a-f-]{36})$/i.exec(translated);
   if(response.ok&&mailDetail&&env.redactedMailIds?.has(mailDetail[1])){

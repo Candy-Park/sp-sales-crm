@@ -10,6 +10,11 @@ from outlook_bridge import envelope
 from outlook_outbox import Outbox,canonical
 
 class BridgeTests(unittest.TestCase):
+    def test_conversation_filter_is_optional_and_rejects_non_hash_input(self):
+        collector=str(Path(__file__).resolve().parent.parent/'tools/outlook_capture.ps1').replace("'","''")
+        script=". '"+collector+"' -LibraryOnly; $keys=Get-CrmConversationSelection ('a'*64+','+'b'*64); if($keys.Count -ne 2 -or -not $keys.Contains('a'*64) -or $keys.Contains('c'*64)){throw 'Wrong selection'}; if((Get-CrmConversationSelection '').Count -ne 0){throw 'Default changed'}; $denied=$false; try{Get-CrmConversationSelection 'not-a-hash'}catch{$denied=$true}; if(-not $denied){throw 'Unsafe filter accepted'}"
+        result=subprocess.run(['powershell.exe','-NoProfile','-Command',script],capture_output=True)
+        self.assertEqual(result.returncode,0,'Conversation selection must stay bounded and leave the original default unchanged')
     def test_received_only_folders_and_helper_direction_survive_dot_source(self):
         collector=str(Path(__file__).resolve().parent.parent/'tools/outlook_capture.ps1').replace("'","''")
         script="& {param([string]$CaptureDirection); . '"+collector+"' -LibraryOnly; $folders=@(Get-CrmCaptureFolders $CaptureDirection); if($CaptureDirection -ne 'received' -or $folders.Count -ne 1 -or $folders[0].Id -ne 6 -or $folders[0].Date -ne 'ReceivedTime'){throw 'Received scope changed'}; if(@(Get-CrmCaptureFolders).Count -ne 2){throw 'Default changed'}; if(@(Get-CrmCaptureFolders 'sent')[0].Id -ne 5){throw 'Sent scope changed'} } -CaptureDirection 'received'"
