@@ -65,6 +65,31 @@ function Get-CrmInternetMessageId($MailItem) {
     }
     return ''
 }
+function Get-CrmReplyIds($MailItem) {
+    $crmRefs=''
+    foreach($crmTag in @('0x1042001F','0x1042001E','0x1039001F','0x1039001E')) {
+        try {$crmRefs+=' '+[string]$MailItem.PropertyAccessor.GetProperty('http://schemas.microsoft.com/mapi/proptag/'+$crmTag)}
+        catch {
+            $crmException=$_.Exception;while($null -ne $crmException.InnerException){$crmException=$crmException.InnerException}
+            if($crmException.HResult -ne -2147221233){throw 'Cannot read reply identity. Outlook access must be checked.'}
+        }
+    }
+    if($crmRefs.Length -gt 65536){throw 'Reply metadata limit exceeded.'}
+    @([regex]::Matches($crmRefs,'<[^>\s]{1,1000}>') | ForEach-Object {$_.Value} | Select-Object -Unique)
+}
+function Expand-CrmConversations($Selection,$Nodes) {
+    $crmMessages=[Collections.Generic.HashSet[string]]::new()
+    for($crmPass=0;$crmPass -lt 50;$crmPass++) {
+        $crmChanged=$false
+        foreach($crmNode in $Nodes) {
+            $crmLinked=$Selection.Contains($crmNode.conversation_key)
+            if(-not $crmLinked){foreach($crmRef in $crmNode.reply_keys){if($crmMessages.Contains($crmRef)){$crmLinked=$true;break}}}
+            if($crmLinked){if($Selection.Add($crmNode.conversation_key)){$crmChanged=$true};if($crmMessages.Add($crmNode.message_key)){$crmChanged=$true}}
+        }
+        if(-not $crmChanged){return ,$Selection}
+    }
+    throw 'Reply graph exceeds safe depth.'
+}
 if ($LibraryOnly) {return}
 $crmConversationSelection=Get-CrmConversationSelection $ConversationKeysCsv
 if ([string]::IsNullOrWhiteSpace($StoreDisplayName)) {throw 'A specific Outlook mailbox is required.'}
@@ -91,6 +116,22 @@ $crmStartText=$Start.ToString('MM/dd/yyyy hh:mm tt',$crmCulture)
 $crmEndText=$End.ToString('MM/dd/yyyy hh:mm tt',$crmCulture)
 $crmRecords=[Collections.Generic.List[object]]::new(); $crmStatistics=[Collections.Generic.List[object]]::new()
 $crmTotal=0
+$crmGraph=[Collections.Generic.List[object]]::new()
+if($crmConversationSelection.Count -gt 0) {
+    foreach($crmSpec in @(Get-CrmCaptureFolders $Direction)) {
+        $crmFolder=$crmStore.GetDefaultFolder($crmSpec.Id)
+        $crmFilter='['+$crmSpec.Date+"] >= '"+$crmStartText+"' AND ["+$crmSpec.Date+"] < '"+$crmEndText+"'"
+        foreach($crmItem in $crmFolder.Items.Restrict($crmFilter)) {
+            if($crmItem.Class -ne 43){continue}
+            if($crmGraph.Count -ge 5000){throw 'Reply graph exceeds 5000 mails.'}
+            $crmConversation=[string]$crmItem.ConversationID;$crmId=Get-CrmInternetMessageId $crmItem
+            if([string]::IsNullOrWhiteSpace($crmConversation) -or [string]::IsNullOrWhiteSpace($crmId)){continue}
+            $crmReplyKeys=@(Get-CrmReplyIds $crmItem | ForEach-Object {Get-CrmHash ($crmScope+':message:'+$_)})
+            $crmGraph.Add([pscustomobject]@{conversation_key=(Get-CrmHash ($crmScope+':conversation:'+$crmConversation));message_key=(Get-CrmHash ($crmScope+':message:'+$crmId));reply_keys=$crmReplyKeys})
+        }
+    }
+    $crmConversationSelection=Expand-CrmConversations $crmConversationSelection $crmGraph
+}
 foreach ($crmSpec in @(Get-CrmCaptureFolders $Direction)) {
     $crmFolder=$crmStore.GetDefaultFolder($crmSpec.Id)
     $crmFilter='['+$crmSpec.Date+"] >= '"+$crmStartText+"' AND ["+$crmSpec.Date+"] < '"+$crmEndText+"'"
@@ -133,6 +174,7 @@ if ($Mode -eq 'Capture') {
     $crmTemporary=$crmDestination+'.partial-'+$crmBatchId
     [IO.File]::WriteAllText($crmTemporary,$crmJson,[Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $crmTemporary -Destination $crmDestination
+    if($crmGraph.Count -gt 0){[IO.File]::WriteAllText($crmDestination+'.links.json',(ConvertTo-Json -InputObject @($crmGraph.ToArray()) -Depth 5 -Compress),[Text.UTF8Encoding]::new($false))}
 }
 [pscustomobject]@{mode=$Mode;batch_id=$crmBatchId;scope_key=$crmScope;start_local=$Start.ToString('s');end_exclusive_local=$End.ToString('s');checked_at_utc=[datetime]::UtcNow.ToString('o');folders=@($crmStatistics.ToArray());captured=$crmRecords.Count;uploaded=0} | ConvertTo-Json -Depth 5
 # Preserve the user's Outlook process and original mails. Do not Quit.

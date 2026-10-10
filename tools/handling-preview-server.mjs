@@ -11,6 +11,7 @@ config.localFollowups=localFollowups;
 const origin='http://127.0.0.1:4327';
 const directory='D:/AI/projects/sp-sales-crm/scratch/handling-preview-20261009/';
 const snapshot=JSON.parse(await readFile(directory+'snapshot.json','utf8'));
+config.localWorkReview=id=>snapshot.classified.find(m=>m.id===id)?.work_review;
 config.redactedMailIds=new Set(snapshot.decisions.filter(d=>d.case_id==='M20-10').map(d=>d.id));
 const memoDirectory='D:/AI/projects/sp-sales-crm/sources/memos/';
 await mkdir(memoDirectory,{recursive:true});

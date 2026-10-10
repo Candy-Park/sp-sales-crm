@@ -22,3 +22,20 @@ test('authorization, incomplete receipt set and unexpected operations never star
  const handler=async req=>new URL(req.url).pathname==='/api/me'?Response.json({user:{id:owner}}):Response.json({mails:[{id:mid,state:'linked',inquiry_id:iid,handling:{include:true,case_id:'M20-03',category:'고객 업무'}}],hasMore:false});
  assert.equal((await handleFollowups(request(),env,handler)).status,503);assert.equal(scans,0);
 });
+test('analysis attaches only the verified inquiry state and rejects unexpected source rows',async()=>{
+ let mode;const env={localHandling:async()=>[target],localFollowups:async input=>{mode=input.mode;return {threads:[{mail_id:mid,inquiry_id:iid,timeline:[]}]};}};
+ const handler=async req=>{
+  const path=new URL(req.url).pathname;
+  if(path==='/api/me')return Response.json({user:{id:owner}});
+  if(path==='/api/outlook')return Response.json({hasMore:false,mails:[{id:mid,state:'linked',inquiry_id:iid,handling:{include:true,category:'고객 업무'}}]});
+  return Response.json({inquiry:{id:iid,title:'SYNTHETIC',status:'closed',updated_at:'2026-10-11T00:00:00Z'},actions:[]});
+ };
+ const req=()=>new Request(origin+'/api/followups?view=analysis',{headers:{authorization:'Bearer SYNTHETIC'}});
+ const response=await handleFollowups(req(),env,handler);assert.equal(response.status,200);assert.equal(mode,'analysis');assert.equal((await response.json()).threads[0].current.status,'closed');
+ env.localWorkReview=()=>({reviewed_on:'2026-10-10',next_action:'confirmed'});
+ env.localFollowups=async()=>({threads:[{mail_id:mid,inquiry_id:iid,timeline:[{occurred_at:'2026-10-08T00:00:00Z'}],proposal:{next_action:'unconfirmed'}}]});
+ const confirmed=await (await handleFollowups(req(),env,handler)).json();assert.equal(confirmed.threads[0].confirmed_review,true);assert.equal(confirmed.threads[0].proposal.next_action,'confirmed');
+ env.localFollowups=async()=>({updates:[{mail_id:mid,latest_at:'2026-10-08T00:00:00Z',received:4,sent:4,later_received:2,later_sent:2},{mail_id:mid,latest_at:'2026-10-11T00:00:00Z',received:5,sent:4,later_received:1,later_sent:0}]});
+ const status=await (await handleFollowups(request(),env,handler)).json();assert.equal(status.updates[0].later_received,0);assert.equal(status.updates[0].received,4);assert.deepEqual(status.updates[0].reviewed_followups,{received:2,sent:2});assert.equal(status.updates[1].later_received,1);
+ env.localFollowups=async()=>({threads:[{mail_id:'unexpected',inquiry_id:iid}]});assert.equal((await handleFollowups(req(),env,handler)).status,503);
+});

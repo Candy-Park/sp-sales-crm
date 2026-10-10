@@ -3,7 +3,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent/'tools'))
 from outlook_outbox import Outbox,canonical,date
-from outlook_followups import scan,read_report
+from outlook_followups import scan,read_report,analyze,expand_keys
 
 OWNER='00000000-0000-4000-8000-000000000001'
 MID='00000000-0000-4000-8000-000000000002'
@@ -63,5 +63,31 @@ class FollowupTests(unittest.TestCase):
    return self.batch|dict(start=start,end=end,records=[base,mail('f','sent','2026-10-10T02:00:00Z','e')])
   result=scan(self.original,self.destination,OWNER,targets,capture,self.now)
   self.assertEqual(result['updates'][1]['later_sent'],1)
+ def test_analysis_reads_existing_mail_without_capture_and_deduplicates_sources(self):
+  scan(self.original,self.destination,OWNER,self.targets,self.capture,self.now)
+  before=hashlib.sha256(self.destination.read_bytes()).hexdigest()
+  thread=analyze(self.original,self.destination,OWNER,self.targets)['threads'][0]
+  self.assertEqual((thread['total'],thread['received'],thread['sent']),(2,1,1));self.assertFalse(thread['auto_apply'])
+  self.assertEqual(before,hashlib.sha256(self.destination.read_bytes()).hexdigest());self.assertEqual(thread['timeline'][1]['direction'],'sent')
+ def test_analysis_hides_sensitive_latest_text_and_rejects_tampered_original(self):
+  import sqlite3
+  scan(self.original,self.destination,OWNER,self.targets,self.capture,self.now)
+  box=Outbox(self.destination);box.stage(self.batch|dict(start='2026-09-07T00:00:00Z',end='2026-10-10T03:00:00Z',records=[mail('e','sent','2026-10-10T02:01:00Z')|dict(body='password: SYNTHETIC_ONLY')]));box.close()
+  thread=analyze(self.original,self.destination,OWNER,self.targets)['threads'][0]
+  self.assertTrue(thread['timeline'][-1]['held']);self.assertNotIn('SYNTHETIC_ONLY',json.dumps(thread))
+  c=sqlite3.connect(self.destination)
+  with c:c.execute("update mail_outbox set payload=json_set(payload,'$.body','tampered') where source_key=?",('e'*64,))
+  c.close()
+  with self.assertRaises(ValueError):analyze(self.original,self.destination,OWNER,self.targets)
+ def test_reply_graph_links_different_conversation_only_through_reply_identity(self):
+  nodes=[dict(conversation_key='c'*64,message_key='a'*64,reply_keys=[]),dict(conversation_key='e'*64,message_key='b'*64,reply_keys=['a'*64]),dict(conversation_key='f'*64,message_key='d'*64,reply_keys=[])]
+  self.assertEqual(expand_keys({'c'*64},nodes),{'c'*64,'e'*64})
+  def capture(scope,start,end,keys):return self.batch|dict(start=start,end=end,records=[self.base,mail('b','received','2026-10-10T02:00:00Z','e')],conversation_links=nodes)
+  result=scan(self.original,self.destination,OWNER,self.targets,capture,self.now)
+  self.assertEqual(result['updates'][0]['later_received'],1)
+  self.assertEqual(analyze(self.original,self.destination,OWNER,self.targets)['threads'][0]['total'],2)
+ def test_invalid_reply_graph_is_rejected_before_storage(self):
+  with self.assertRaises(ValueError):expand_keys({'c'*64},[dict(conversation_key='e'*64,message_key='not-a-hash',reply_keys=[])])
+  self.assertFalse(self.destination.exists())
 
 if __name__=='__main__':unittest.main()

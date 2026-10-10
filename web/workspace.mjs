@@ -375,7 +375,12 @@ function initWorkspace(api, dashboard, message, workspaceOptions={}) {
       if (epoch === sessionGeneration) await open(i.id);
     });
   });
-  return { open, show, register, history, reviewMail:id=>outlook.reviewMail(id), reset() {
+  return { open, show, register, history, async prepareAction(id,description){
+    await open(id);
+    if(selected?.id!==id||selected.status==='closed')return false;
+    el('action-description').value=description;el('action-form').scrollIntoView({block:'center',behavior:'smooth'});
+    message('action-message','메일 대조 제안입니다. 기존 할 일과 중복 여부·내용·기한을 확인한 뒤 저장하세요.');return true;
+  }, reviewMail:id=>outlook.reviewMail(id), reset() {
     outlook.reset();
     products.reset();
     communication.reset();

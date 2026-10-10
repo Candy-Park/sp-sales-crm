@@ -8,6 +8,7 @@ export async function handleFollowups(request,env,handler){
   if(Object.keys(body??{}).join(',')!=='operation'||body.operation!=='refresh')return fail(400,'메일 확인 작업을 확인하세요.');
  }
  const query=path=>handler(new Request(new URL(path,request.url),{headers:request.headers}),env);
+ const analysis=request.method==='GET'&&new URL(request.url).searchParams.get('view')==='analysis';
  try{
   const me=await query('/api/me');if(!me.ok)return me;
   const owner=(await me.json()).user.id;
@@ -16,15 +17,34 @@ export async function handleFollowups(request,env,handler){
   const receipts=new Map((await env.localHandling(owner)).map(row=>[row.id,row]));
   const linked=list.mails.filter(m=>m.handling?.include&&m.handling.case_id!=='M20-10'&&!m.excluded&&m.state==='linked'&&m.inquiry_id);
   if(!linked.length)return fail(422,'먼저 담당 메일을 문의에 연결하세요.');
+  const current=new Map();
   const targets=await Promise.all(linked.map(async mail=>{
    const receipt=receipts.get(mail.id);if(!receipt)throw Error('Receipt missing');
    const response=await query('/api/inquiries/'+mail.inquiry_id);if(!response.ok)throw Error('Inquiry unavailable');
    const data=await response.json();if(data.inquiry.id!==mail.inquiry_id)throw Error('Inquiry mismatch');
+   current.set(mail.id,{title:data.inquiry.title,status:data.inquiry.status,next_action:data.inquiry.next_action,review:env.localWorkReview?.(mail.id),actions:data.actions.map(a=>({id:a.id,description:a.description,status:a.status,due_date:a.due_date,kind:a.kind}))});
    const stamps=[data.inquiry.updated_at,...data.actions.map(a=>a.updated_at)].filter(Boolean).map(v=>new Date(v));
    if(!stamps.length||stamps.some(d=>!Number.isFinite(+d)))throw Error('Review time missing');
    return {id:mail.id,scope_key:receipt.scope_key,source_key:receipt.source_key,payload_hash:receipt.payload_hash,inquiry_id:mail.inquiry_id,category:mail.handling.category,reviewed_at:new Date(Math.max(...stamps)).toISOString()};
   }));
-  const result=await env.localFollowups({mode:request.method==='POST'?'refresh':'status',owner,targets});
+  const result=await env.localFollowups({mode:analysis?'analysis':request.method==='POST'?'refresh':'status',owner,targets});
+  if(analysis){for(const thread of result.threads){
+   if(!current.has(thread.mail_id)||!targets.some(t=>t.id===thread.mail_id&&t.inquiry_id===thread.inquiry_id))throw Error('Unexpected analysis');thread.current=current.get(thread.mail_id);
+   const review=thread.current.review,latest=thread.timeline.at(-1)?.occurred_at;
+   if(review?.reviewed_on&&latest&&new Date(latest)<new Date(review.reviewed_on+'T00:00:00+09:00')){
+    thread.confirmed_review=true;
+    thread.proposal={...thread.proposal,stage:'확정한 업무 유지',next_action:thread.current.next_action||review.next_action,auto_apply:false};
+   }
+  }}
+  else if(Array.isArray(result.updates)){
+   result.updates=result.updates.map(row=>{
+    const review=current.get(row.mail_id)?.review;
+    if(review?.reviewed_on&&row.latest_at&&new Date(row.latest_at)<new Date(review.reviewed_on+'T00:00:00+09:00')){
+     return {...row,reviewed_followups:{received:row.later_received,sent:row.later_sent},later_received:0,later_sent:0};
+    }
+    return row;
+   });
+  }
   return Response.json(result,{status:request.method==='POST'?202:200});
  }catch{return fail(503,'메일 확인을 준비하지 못했습니다. 기존 업무는 유지했습니다.');}
 }
