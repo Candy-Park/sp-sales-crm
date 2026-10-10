@@ -1,4 +1,5 @@
 import { actionBucket } from "../src/basic-work.mjs";
+import {defaultActionDue,extendActionDue} from '../src/action-deadline.mjs';
 import {initOutlook} from './outlook.mjs';
 import {initProducts} from './products.mjs';
 import {initCommunication} from './communication.mjs';
@@ -202,6 +203,11 @@ function initWorkspace(api, dashboard, message, workspaceOptions={}) {
         target.maxLength = 200;
         const reason = control("textarea", "", "취소 사유 (취소 시 필수)", form);
         reason.maxLength = 2e3;
+        const extend=document.createElement('button');extend.type='button';extend.className='btn btn-outline-primary';extend.textContent='3일 연장 · 저장';
+        extend.addEventListener('click',()=>{
+          try{due.value=extendActionDue(due.value);form.requestSubmit(form.querySelector('button[value="open"]'));}
+          catch(error){message('edit-action-'+action.id,error.message,true);}
+        });form.append(extend);
         for (const [state, label] of [["open", "변경 저장"], ["completed", "완료 처리"], ["cancelled", "사유를 남기고 취소"]]) {
           const b = document.createElement("button");
           b.className = "btn btn-outline-secondary";
@@ -235,6 +241,7 @@ function initWorkspace(api, dashboard, message, workspaceOptions={}) {
   async function open(id) {
     if (currentDetailId !== id) {
       el("action-form").reset();
+      el('action-due').value=defaultActionDue();
       actionId = crypto.randomUUID();
     }
     currentDetailId = id;
@@ -299,6 +306,7 @@ function initWorkspace(api, dashboard, message, workspaceOptions={}) {
   });
   el("action-reset").addEventListener("click", () => {
     el("action-form").reset();
+    el('action-due').value=defaultActionDue();
     actionId = crypto.randomUUID();
     message("action-message", "새 Action 입력을 시작합니다.");
   });
@@ -361,6 +369,7 @@ function initWorkspace(api, dashboard, message, workspaceOptions={}) {
       await api("/api/inquiries/" + iid + "/actions", "POST", { id: actionId, kind: el("action-kind").value, description: el("action-description").value, due_date: el("action-due").value || null, mandatory: el("action-mandatory").checked, waiting_target: el("action-target").value, waiting_since: toIso(el("action-since").value) });
       if (epoch !== sessionGeneration) return;
       el("action-form").reset();
+      el('action-due').value=defaultActionDue();
       actionId = crypto.randomUUID();
       message("action-message", "");
       await open(iid);

@@ -610,3 +610,14 @@ Chrome의 기존 메인 CRM 탭은 없고 새 4317 탭은 로그인 화면이었
 - 복원: 소스 변경 전 기준은 `9d9c9fe`. 필요 시 해당 후속 구현 커밋을 일반 revert하고 검토 번들을 재빌드한다. 실제 패킹 수정·초안과 로컬 원문/연결 캐시는 Git 복원으로 되돌아가지 않으며 임의 삭제하지 않는다. 합성 검수 서버는 해당 4330 프로세스만 종료할 수 있다.
 
 - 구현 선별 커밋 완료: 1df36db (Review linked mail history and preserve confirmed tasks). 커밋 뒤 작업 트리 clean 확인. 원격 미등록으로 외부 반영 없음.
+
+
+## 2026-10-11 — 수작업 감소 변경 1단계
+
+- 목적/승인: 사용자가 제시된 개선 방향 구현과 기본 3일 기한·연장 버튼·평일 Outlook 수집을 요청했다.
+- 변경: `src/action-deadline.mjs`, `src/api.mjs`, `web/workspace.mjs`, `web/index.html`, `web/crm-followups.mjs`, `tools/outlook_followups.py`, `web/work-agenda.mjs`, `tools/handling-preview-ui.mjs`, 관련 Node/Python 검사와 합성 브라우저 fixture.
+- 보존: 기존 고객 약속/Action 기한·상태·원문·분류·DB/Auth/RLS와 기본 경로 유지. 신규 기한만 3일 기본값. 연장 버튼은 기존 수정 저장과 충돌 보호를 사용한다. 실제 고객 업무는 이번 검수에서 변경하지 않았다.
+- 검증: Node145/145, Python82/82, 빌드·합성 메뉴/메모/인증 회귀 통과. Chrome 합성 Action 기본10/14에서 연장10/17 저장·재조회 통과. 원래 합성 fixture에 inquiry_id가 빠져 연장 후 재조회가 실패했으나 fixture를 수정하고 같은 흐름 재검수 통과했다.
+- 적용: 4327과 합성4330 서버를 시작하고 새 번들을 제공한다. 주말 수집 차단·Outlook 종료 건너뛰기는 가상 시각/주입 검사로 확인했다. 연결된 Chrome 실데이터 통합 홈과 실저장 기한 검수는 별도이며 로그인 요청 중이다.
+- 남은 범위: 새 비연결 대화 분류/등록, 고객/HQ 실제 회신 이력 자동 기록, 책임자·기한 추출, 독립 실행기와 정각 장기 검수. 완료 처리하지 않는다.
+- 커밋/복원: 관련 코드·검사·기존 문서만 선별 로컬 커밋한다. 원격 미등록. 변경 전 기준719f47a; 필요 시 해당 구현 커밋을 일반 revert하고 번들을 재빌드한다. 실제 DB/메일/메모는 Git revert로 변경하지 않는다. 추가 데이터 백업을 만들지 않았다.

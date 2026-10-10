@@ -3,7 +3,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent/'tools'))
 from outlook_outbox import Outbox,canonical,date
-from outlook_followups import scan,read_report,analyze,expand_keys
+from outlook_followups import scan,read_report,analyze,expand_keys,refresh
 
 OWNER='00000000-0000-4000-8000-000000000001'
 MID='00000000-0000-4000-8000-000000000002'
@@ -20,6 +20,9 @@ class FollowupTests(unittest.TestCase):
   self.targets=[dict(id=MID,scope_key='d'*64,source_key='a'*64,payload_hash=row['payload_hash'],inquiry_id=IID,category='고객 업무',reviewed_at='2026-10-10T01:00:00Z')]
   self.now=datetime(2026,10,10,3,0,tzinfo=timezone.utc)
  def tearDown(self):self.folder.cleanup()
+ def test_closed_outlook_skips_capture_and_preserves_checkpoint(self):
+  result=refresh(self.original,self.destination,OWNER,self.targets,lambda *args:self.fail('must not start Outlook'),lambda:False)
+  self.assertEqual(result['skipped'],'outlook_not_running');self.assertFalse(self.destination.exists())
  def capture(self,scope,start,end,keys):
   self.assertEqual(keys,{'c'*64});return self.batch|dict(start=start,end=end,records=[m for m in [self.base,mail('b','sent','2026-10-10T02:00:00Z')] if date(start)<=date(m['occurred_at'])<date(end)])
  def test_same_thread_delta_is_proposal_and_repeat_scan_deduplicates_without_cloud_write(self):

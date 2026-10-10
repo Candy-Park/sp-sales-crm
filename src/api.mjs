@@ -1,4 +1,5 @@
 import {id,writeInput} from './write-input.mjs';
+import {defaultActionDue} from './action-deadline.mjs';
 import {productQuery,searchProducts,linkInput} from './products.mjs';
 import {communicationInput} from './communication.mjs';
 import {outlookInput,classificationCategories} from './outlook.mjs';
@@ -84,6 +85,7 @@ export async function handleApi(request, env, fetcher=fetch) {
       const operation=outlookClassify?'outlook-classify':outlookTriage?'outlook-triage':outlookLink?'outlook-link':path==='/api/outlook'?'outlook-ingest':messages?'message':questions?'question':review?'review':productLinks?'product-link':path==='/api/inquiries'?'register':addAction?'action':editAction?'action-edit':close?'close':detail?'inquiry-edit':'party';
       let data;try{data=operation.startsWith('outlook-')?outlookInput(operation,body):messages||questions||review?communicationInput(operation,body):productLinks?linkInput(body):writeInput(operation,body);}catch(error){return reply(400,{error:error.message});}
       const rpc={'outlook-classify':'sales_classify_outlook','outlook-triage':'sales_triage_outlook','outlook-ingest':'sales_ingest_outlook','outlook-link':'sales_link_outlook',register:'sales_register_inquiry',action:'sales_add_action','action-edit':'sales_edit_action',close:'sales_close_inquiry','inquiry-edit':'sales_edit_inquiry',party:'sales_edit_party','product-link':'sales_link_product',message:'sales_record_message',question:'sales_add_hq_question',review:'sales_review_hq_question'}[operation];
+      if(operation==='action'&&!data.due_date)data.due_date=defaultActionDue();
       const params={p_data:data};if(addAction)params.p_inquiry_id=addAction[1];if(editAction||close||detail)params.p_id=(editAction||close||detail)[1];
       if(outlookLink||outlookTriage||outlookClassify)params.p_id=(outlookLink||outlookTriage||outlookClassify)[1];
       if(productLinks)params.p_inquiry_id=productLinks[1];

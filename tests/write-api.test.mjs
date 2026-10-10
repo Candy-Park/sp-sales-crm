@@ -2,10 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {handleApi} from '../src/api.mjs';
 import {writeInput} from '../src/write-input.mjs';
+import {defaultActionDue} from '../src/action-deadline.mjs';
 const uid='a11803c8-01ef-4563-95bb-c0024541be2c',iid='00000000-0000-4000-8000-000000000001';
 const env={SUPABASE_URL:'https://glscckjmlwvxilzneqdf.supabase.co',SUPABASE_PUBLISHABLE_KEY:'sb_publishable_synthetic'};
 const draft={id:iid,customer_name:'가상 고객',title:'가상 문의',channel:'manual',received_at:'2026-10-06T12:00:00+09:00',original_text:'원문 100G / 10 km',next_action:'HQ 확인'};
 const action={id:iid,kind:'hq_inquiry',description:'가상 HQ 문의',due_date:'2026-10-07',mandatory:true,waiting_target:'',waiting_since:null};
+test('new undated action gets three-day default while editing a legacy undated action preserves null',async()=>{
+ const up=upstream();await handleApi(req('/api/inquiries/'+iid+'/actions','POST',{...action,due_date:null}),env,up.fetch);
+ assert.equal(JSON.parse(up.seen.at(-1).init.body).p_data.due_date,defaultActionDue());
+ const {id,...fields}=action;await handleApi(req('/api/actions/'+iid,'PATCH',{...fields,due_date:null,revision:1,status:'open',cancel_reason:''}),env,up.fetch);
+ assert.equal(JSON.parse(up.seen.at(-1).init.body).p_data.due_date,null);
+});
 function req(path,method='POST',body=draft,token='test-token'){return new Request('http://127.0.0.1:4317'+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},body:method==='GET'?undefined:JSON.stringify(body)});}
 function upstream({code=null,enabled=true,auth=200}={}){const seen=[];return {seen,fetch:async(url,init)=>{url=new URL(url);seen.push({url,init});if(url.pathname==='/auth/v1/user')return Response.json({id:uid,email:'synthetic@example.test'},{status:auth});if(url.pathname==='/rest/v1/sales_access')return Response.json(enabled?[{user_id:uid,enabled:true}]:[]);if(url.pathname.includes('/rpc/'))return code?Response.json({code,message:'private server details'},{status:400}):Response.json(iid);return Response.json([]);}};}
 test('registration uses verified bearer, RPC, and preserves original text without client owner',async()=>{const up=upstream();const r=await handleApi(req('/api/inquiries'),env,up.fetch);assert.equal(r.status,200);const last=up.seen.at(-1);assert.equal(last.url.pathname,'/rest/v1/rpc/sales_register_inquiry');const payload=JSON.parse(last.init.body);assert.equal(payload.p_data.original_text,draft.original_text);assert.equal(payload.p_data.received_at,draft.received_at);assert.equal(payload.p_data.owner_id,undefined);assert.equal(last.init.headers.authorization,'Bearer test-token');});

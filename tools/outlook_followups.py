@@ -161,12 +161,22 @@ def capture(scope,start,end,keys):
   if links.exists():batch['conversation_links']=json.loads(links.read_text(encoding='utf-8-sig'))
   return batch
 
+def outlook_running():
+ result=subprocess.run(['powershell.exe','-NoProfile','-Command',"if(Get-Process OUTLOOK -ErrorAction SilentlyContinue){exit 0}else{exit 3}"],capture_output=True,timeout=15)
+ if result.returncode not in (0,3):raise ValueError('Outlook state unavailable')
+ return result.returncode==0
+
+def refresh(original,destination,owner,targets,capture,running=outlook_running):
+ seeds(original,owner,targets)
+ if not running():return read_report(original,destination,owner,targets)|dict(skipped='outlook_not_running')
+ return scan(original,destination,owner,targets,capture)
+
 if __name__=='__main__':
  try:
   config=json.loads(sys.stdin.read(40000))
   if set(config)!={'mode','owner','targets'} or config['mode'] not in {'status','refresh','analysis'}:raise ValueError('Invalid mode')
   if config['mode']=='analysis':result=analyze(ORIGINAL,DESTINATION,config['owner'],config['targets'])
-  elif config['mode']=='refresh':result=scan(ORIGINAL,DESTINATION,config['owner'],config['targets'],capture)
+  elif config['mode']=='refresh':result=refresh(ORIGINAL,DESTINATION,config['owner'],config['targets'],capture)
   else:result=read_report(ORIGINAL,DESTINATION,config['owner'],config['targets'])
   print(json.dumps(result,ensure_ascii=False))
  except Exception:sys.exit(1) # Never print mail bodies, credentials or raw subprocess errors.
