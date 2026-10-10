@@ -2,7 +2,7 @@ import {classificationRoles} from '../src/outlook.mjs';
 const businessCategories=['고객 업무','HQ 업무'];
 const el=id=>document.getElementById(id);
 const seoul=value=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'short',timeStyle:'short'}).format(new Date(value));
-export function initOutlook({api,message,show,open}){
+export function initOutlook({api,message,show,open,onList=()=>{}}){
   let epoch=0,offset=0,view='active',selected=null,registrationId=crypto.randomUUID(),timer=null,inquiryOffset=0,reviewSequence=0,listSequence=0;
   const option=(value,label)=>{const node=document.createElement('option');node.value=value;node.textContent=label;return node;};
   let category='all',classification='all',labelRequest=null,listedHandling=new Map();
@@ -29,6 +29,7 @@ export function initOutlook({api,message,show,open}){
     const active=epoch,sequence=++listSequence;
     try{
       const data=await api('/api/outlook?offset='+offset+'&view='+view+(category==='all'?'':'&category='+encodeURIComponent(category))+(classification==='all'?'':'&classification='+classification));if(active!==epoch||sequence!==listSequence)return;
+      onList(data.mails,view);
       el('outlook-list').replaceChildren();
       listedHandling=new Map(data.mails.filter(m=>m.handling).map(m=>[m.id,m.handling]));
       if(el('outlook-handling-summary'))el('outlook-handling-summary').textContent=data.summary?`사용자 확인 ${data.summary.reviewed}건 · 담당 업무 ${data.summary.business}건 · 등록 불필요 ${data.summary.skipped}건. 확인한 표본 기준이며 전체 받은 메일의 자동 분류 결과는 아닙니다.`:'';
@@ -151,7 +152,7 @@ export function initOutlook({api,message,show,open}){
     }catch(error){if(active===epoch&&sequence===reviewSequence)report(error);}
     finally{if(active===epoch&&sequence===reviewSequence)button.disabled=false;}
   });
-  return {async bind(id,page=0){
+  return {reviewMail(id){return review(id);},async bind(id,page=0){
     const active=epoch;el('detail-mails').replaceChildren();
     try{
       const data=await api('/api/outlook?inquiry_id='+id+'&offset='+page);if(active!==epoch)return;

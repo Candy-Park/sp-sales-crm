@@ -1,4 +1,5 @@
 import {initOutlook} from '../web/outlook.mjs';
+import {renderTaskBoard} from '../web/mail-task-board.mjs';
 const el=id=>document.getElementById(id);
 const message=(id,text,error=false)=>{el(id).textContent=text;el(id).classList.toggle('error',error);};
 const api=async(path,method)=>{
@@ -8,12 +9,20 @@ const api=async(path,method)=>{
 };
 el('login-view').hidden=true;el('workspace').hidden=false;
 for(const id of ['dashboard-view','register-view','history-view','detail-view','products-view'])if(el(id))el(id).hidden=true;
-el('user-email').textContent='사용자 확인 20건 · 로컬 읽기 전용 미리보기';
-el('outlook-view').querySelector('h1').nextElementSibling.textContent='영업 담당 기준으로 확인한 고객·HQ 업무입니다. 메일을 누르면 원문과 이번 확인 기준을 볼 수 있습니다.';
+el('user-email').textContent='메일 근거로 정리한 업무 · 읽기 전용';
+const view=el('outlook-view'),heading=view.querySelector('h1'),intro=heading.nextElementSibling;
+heading.textContent='내가 할 일';intro.textContent='할 일과 날짜를 먼저 보고, 필요한 메일만 펼쳐 확인하세요.';
 for(const id of ['outlook-start','outlook-review-sync','outlook-status','logout-button'])el(id).hidden=true;
 for(const note of el('outlook-view').querySelectorAll('p'))if(note.textContent.startsWith('오늘 검토본은'))note.hidden=true;
-const banner=document.createElement('p');banner.className='alert alert-info';banner.textContent='확인하신 기준으로 CRM 메일 화면을 미리 봅니다. 담당 업무 7건 / 등록 불필요 13건. 운영 DB·기존 분류·문의 연결은 변경하지 않았습니다.';el('workspace').prepend(banner);
-initOutlook({api,message,show:()=>{el('outlook-view').hidden=false;},open:async()=>{message('outlook-message','기존 문의 연결은 그대로 보존돼 있습니다. 이 화면은 메일 기준 확인용입니다.');}});
+const board=document.createElement('div');board.id='mail-task-board';
+const mailDetails=document.createElement('details');mailDetails.className='task-mail-details';const summary=document.createElement('summary');summary.textContent='메일 목록 · 분류 보기';mailDetails.append(summary);
+for(const child of [...view.children])if(![heading,intro,el('outlook-review'),el('outlook-message')].includes(child))mailDetails.append(child);
+intro.after(board,mailDetails);
+el('outlook-classification-section').hidden=true;
+const workflow=el('outlook-workflow').parentElement;workflow.querySelector('h3').textContent='처리 상태와 판단 근거';for(const hint of workflow.querySelectorAll('p'))hint.hidden=true;el('outlook-workflow').hidden=true;
+const original=document.createElement('details');original.className='task-mail-details';const originalTitle=document.createElement('summary');originalTitle.textContent='메일 원문 펼치기';original.append(originalTitle);el('outlook-meta').before(original);original.append(el('outlook-meta'),el('outlook-body'));
+el('outlook-triage-note').hidden=true;
+let outlook;outlook=initOutlook({api,message,show:()=>{view.hidden=false;},onList:(mails,listView)=>{if(listView==='reviewed')renderTaskBoard(board,mails,id=>outlook.reviewMail(id));},open:async()=>{message('outlook-message','기존 문의 연결은 그대로 보존돼 있습니다. 이 화면은 메일 기준 확인용입니다.');}});
 const blocked=['logout-button','nav-dashboard','nav-register','nav-history','mobile-dashboard','mobile-register','mobile-history','outlook-start','outlook-review-sync','outlook-workflow','outlook-classify','outlook-link-save','outlook-triage','outlook-linked-open'];
 const disable=()=>{for(const id of blocked)if(el(id)&&!el(id).disabled)el(id).disabled=true;};
 new MutationObserver(disable).observe(el('workspace'),{subtree:true,attributes:true,attributeFilter:['disabled']});disable();
