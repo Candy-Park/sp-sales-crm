@@ -18,20 +18,20 @@ export const localHandling=owner=>invoke({owner},'tools/outlook_handling.py');
 export const localDiscovery=input=>invoke(input,'tools/outlook_discovery.py');
 let followupJob=null;
 const followupResults=new Map();
-export async function localFollowups(input){
- if(input.mode==='analysis')return invoke(input,'tools/outlook_followups.py');
+export async function localFollowups(input,run=invoke){
+ if(input.mode==='analysis')return run(input,'tools/outlook_followups.py');
  if(followupJob&&followupJob.owner!==input.owner)throw Error('Followup scan occupied');
  if(input.mode==='status'){
   const cached=followupResults.get(input.owner);
   if(cached?.running)return {...cached,updates:[]};
   if(cached?.error)return {...cached,updates:[]};
   if(cached?.updates?.length===input.targets.length&&input.targets.every(t=>cached.updates.some(row=>row.mail_id===t.id&&row.inquiry_id===t.inquiry_id)))return cached;
-  return {...await invoke(input,'tools/outlook_followups.py'),running:false};
+  return {...await run(input,'tools/outlook_followups.py'),running:false};
  }
  if(!followupJob){
   followupJob={owner:input.owner};
-  followupResults.set(input.owner,{...followupResults.get(input.owner),running:true,error:null});
-  invoke(input,'tools/outlook_followups.py').then(result=>followupResults.set(input.owner,{...result,running:false}),()=>followupResults.set(input.owner,{...followupResults.get(input.owner),running:false,error:'Outlook 메일 확인을 완료하지 못했습니다. Outlook 연결·프로필을 확인한 뒤 다시 실행하세요.'})).finally(()=>{followupJob=null;});
+  followupResults.set(input.owner,{...followupResults.get(input.owner),running:true,error:null,skipped:undefined});
+  run(input,'tools/outlook_followups.py').then(result=>followupResults.set(input.owner,{...result,running:false}),()=>followupResults.set(input.owner,{...followupResults.get(input.owner),running:false,error:'Outlook 메일 확인을 완료하지 못했습니다. Outlook 연결·프로필을 확인한 뒤 다시 실행하세요.'})).finally(()=>{followupJob=null;});
  }
  return followupResults.get(input.owner);
 }
