@@ -6,6 +6,7 @@ from pathlib import Path
 from outlook_outbox import Outbox,canonical,date,digest,valid_mail
 from outlook_workflow import propose
 from outlook_review import newest_text
+from outlook_discovery import collect_new,for_targets,stage_batch,DESTINATION as DISCOVERY
 import re
 
 ORIGINAL=Path('D:/AI/projects/sp-sales-crm/sources/outlook/outbox.sqlite')
@@ -141,7 +142,7 @@ def scan(original,destination,owner,targets,capture,now=None):
    box.connection.execute('CREATE TABLE IF NOT EXISTS followup_reviews(mail_id TEXT PRIMARY KEY,inquiry_id TEXT NOT NULL,reviewed_at TEXT NOT NULL)')
    box.connection.execute('CREATE TABLE IF NOT EXISTS followup_links(mail_id TEXT NOT NULL,conversation_key TEXT NOT NULL,PRIMARY KEY(mail_id,conversation_key))')
   # stage validates every source/date/direction and atomically preserves originals.
-  box.stage(batch)
+  stage_batch(box,batch)
   with box.connection:
    for t,_,_ in selected:box.connection.execute('INSERT OR IGNORE INTO followup_reviews VALUES(?,?,?)',(t['id'],t['inquiry_id'],t['reviewed_at']))
    for mid,group in groups.items():
@@ -159,6 +160,10 @@ def capture(scope,start,end,keys):
   if result.returncode:raise ValueError('Outlook capture unavailable')
   batch=json.loads(output.read_text(encoding='utf-8-sig'));links=Path(str(output)+'.links.json')
   if links.exists():batch['conversation_links']=json.loads(links.read_text(encoding='utf-8-sig'))
+  domains=Path(str(output)+'.domains.json')
+  if domains.exists():batch['sender_domains']=json.loads(domains.read_text(encoding='utf-8-sig'))
+  recipients=Path(str(output)+'.recipient-domains.json')
+  if recipients.exists():batch['recipient_domains']=json.loads(recipients.read_text(encoding='utf-8-sig'))
   return batch
 
 def outlook_running():
@@ -167,15 +172,19 @@ def outlook_running():
  return result.returncode==0
 
 def refresh(original,destination,owner,targets,capture,running=outlook_running):
- seeds(original,owner,targets)
+ selected=seeds(original,owner,targets)
  if not running():return read_report(original,destination,owner,targets)|dict(skipped='outlook_not_running')
- return scan(original,destination,owner,targets,capture)
+ result=scan(original,destination,owner,targets,capture)
+ # New conversations share the already approved Inbox/Sent mailbox and remain local.
+ now=datetime.now(timezone.utc).replace(second=0,microsecond=0).isoformat()
+ collect_new(DISCOVERY,owner,selected[0][0]['scope_key'],min(w[1] for _,_,w in selected),now,capture)
+ return result|dict(discovery_ready=True)
 
 if __name__=='__main__':
  try:
   config=json.loads(sys.stdin.read(40000))
   if set(config)!={'mode','owner','targets'} or config['mode'] not in {'status','refresh','analysis'}:raise ValueError('Invalid mode')
-  if config['mode']=='analysis':result=analyze(ORIGINAL,DESTINATION,config['owner'],config['targets'])
+  if config['mode']=='analysis':result=analyze(ORIGINAL,DESTINATION,config['owner'],config['targets'])|for_targets(ORIGINAL,DESTINATION,config['owner'],config['targets'])
   elif config['mode']=='refresh':result=refresh(ORIGINAL,DESTINATION,config['owner'],config['targets'],capture)
   else:result=read_report(ORIGINAL,DESTINATION,config['owner'],config['targets'])
   print(json.dumps(result,ensure_ascii=False))

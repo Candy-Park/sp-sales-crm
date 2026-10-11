@@ -1,4 +1,5 @@
 import {createClient} from '@supabase/supabase-js';
+export function crmRequestTimeout(path,method,body){return path==='/api/followups'&&method==='POST'&&['reconcile','choose'].includes(body?.operation)?120000:15000;}
 export function initCRMConnection({onConnected,onDisconnected,fetcher=fetch,clientFactory=createClient}){
  const el=id=>document.getElementById(id);let client=null,epoch=0,connected=false;
  const dialog=document.createElement('dialog');dialog.className='crm-login-dialog';dialog.setAttribute('aria-label','CRM 계정 연결');
@@ -13,7 +14,7 @@ export function initCRMConnection({onConnected,onDisconnected,fetcher=fetch,clie
   const active=epoch;const session=client?(await client.auth.getSession()).data.session:null;
   if(active!==epoch)throw Error('로그인 상태가 변경됐습니다.');
   if(!session){show();throw Error('CRM 계정을 연결하면 저장된 업무를 사용할 수 있습니다.');}
-  const response=await fetcher(path.replace(/^\/api\//,'/api/crm/'),{method,headers:{authorization:'Bearer '+session.access_token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(15000)});
+  const response=await fetcher(path.replace(/^\/api\//,'/api/crm/'),{method,headers:{authorization:'Bearer '+session.access_token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(crmRequestTimeout(path,method,body))});
   const data=await response.json();if(active!==epoch)throw Error('로그인 상태가 변경됐습니다.');
   if(!response.ok){if(response.status===401){clear();status('로그인이 만료됐습니다. 다시 연결하세요.',true);show();}throw Error(data.error||'CRM 요청을 확인하지 못했습니다.');}return data;
  }

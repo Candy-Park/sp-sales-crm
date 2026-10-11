@@ -46,7 +46,8 @@ export function initFollowups({root,api,isConnected,open,label=()=>'',schedule=s
   try{
    const data=await api('/api/followups',refresh?'POST':'GET',refresh?{operation:'refresh'}:undefined);
    if(active!==epoch||!isConnected())return;render(data);
-   if(!data.error&&!data.running&&data.last_checked_at){if(lastChecked&&lastChecked!==data.last_checked_at)onChecked();lastChecked=data.last_checked_at;}
+   if(!data.error&&!data.running&&data.skipped!=='outlook_not_running'&&data.last_checked_at){if(lastChecked!==data.last_checked_at)await onChecked();lastChecked=data.last_checked_at;}
+   if(active!==epoch||!isConnected())return;
    if(!data.error){if(data.running)timer=schedule(()=>void check(false),4000);else arm();}
   }catch(error){if(active===epoch&&isConnected()){status.textContent=error.message+' 자동 확인을 중지했습니다.';status.classList.add('error');}}
   finally{if(active===epoch){busy=false;button.disabled=!isConnected();}}

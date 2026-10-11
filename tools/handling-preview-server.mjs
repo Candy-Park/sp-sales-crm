@@ -1,5 +1,5 @@
 import {handleCRMBridge} from '../src/crm-preview-bridge.mjs';
-import {localHandling,localFollowups} from './outlook-local.mjs';
+import {localHandling,localFollowups,localDiscovery} from './outlook-local.mjs';
 import {createServer} from 'node:http';
 import {readFile,mkdir} from 'node:fs/promises';
 import {reviewedMailPage} from '../src/outlook-handling.mjs';
@@ -8,6 +8,7 @@ import {handleLocalMemos} from '../src/local-memo-api.mjs';
 const config={SUPABASE_URL:process.env.SUPABASE_URL??'https://glscckjmlwvxilzneqdf.supabase.co',SUPABASE_PUBLISHABLE_KEY:process.env.SUPABASE_PUBLISHABLE_KEY??''};
 config.localHandling=localHandling;
 config.localFollowups=localFollowups;
+config.localDiscovery=localDiscovery;
 const origin='http://127.0.0.1:4327';
 const directory='D:/AI/projects/sp-sales-crm/scratch/handling-preview-20261009/';
 const snapshot=JSON.parse(await readFile(directory+'snapshot.json','utf8'));

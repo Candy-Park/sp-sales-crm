@@ -34,9 +34,9 @@ const workflow=el('outlook-workflow').parentElement;workflow.querySelector('h3')
 const original=document.createElement('details');original.className='task-mail-details';const originalTitle=document.createElement('summary');originalTitle.textContent='메일 원문 펼치기';original.append(originalTitle);el('outlook-meta').before(original);original.append(el('outlook-meta'),el('outlook-body'));
 el('outlook-triage-note').hidden=true;
 let taskSequence=0,taskMails=new Map(),currentView='dashboard';
-let work,followups,threadReview,agenda,agendaRoot;const protectedMailIds=new Set();
+let work,followups,threadReview,agenda,agendaRoot;const protectedMailIds=new Set(),localSources=new Map();
 const activate=id=>{for(const nav of document.querySelectorAll('.side-nav .nav-button'))nav.classList.toggle('active',nav.id===id);};
-const connection=initCRMConnection({onConnected(){followups?.start();threadReview?.start();el('user-email').textContent='CRM 연결됨 · 메모는 이 PC에 저장';if(currentView==='register')void work.register();else if(currentView==='history')void work.history();else void dashboard();},onDisconnected(){followups?.stop();threadReview?.stop();agenda?.stop();protectedMailIds.clear();work?.reset();el('user-email').textContent='업무 조회 · 메모는 이 PC에 저장';el('action-list').replaceChildren();el('inquiry-list').replaceChildren();message('dashboard-message','저장된 문의와 이력은 CRM 계정 연결 후 확인할 수 있습니다.');void dashboard();}});
+const connection=initCRMConnection({onConnected(){followups?.start();threadReview?.start();el('user-email').textContent='CRM 연결됨 · 메모는 이 PC에 저장';if(currentView==='register')void work.register();else if(currentView==='history')void work.history();else void dashboard();},onDisconnected(){followups?.stop();threadReview?.stop();agenda?.stop();protectedMailIds.clear();localSources.clear();work?.reset();el('user-email').textContent='업무 조회 · 메모는 이 PC에 저장';el('action-list').replaceChildren();el('inquiry-list').replaceChildren();message('dashboard-message','저장된 문의와 이력은 CRM 계정 연결 후 확인할 수 있습니다.');void dashboard();}});
 function viewChanged(name){taskSequence++;currentView=name;memoPage.hidden=true;taskDetail.hidden=true;taskDetail.replaceChildren();memoQuick.hidden=!['dashboard','outlook'].includes(name);board.hidden=name==='dashboard'&&connection.isConnected();heading.hidden=false;intro.hidden=false;mailDetails.hidden=false;el('outlook-review').hidden=true;if(name==='dashboard'){el('dashboard-view').querySelector('.summary-strip').after(memoQuick,board);activate('nav-dashboard');}else if(name==='outlook'){intro.after(memoQuick,board);activate(el('outlook-category-filter').value==='HQ 업무'?'nav-hq':'nav-customer');}else activate(name==='register'?'nav-register':name==='history'?'nav-history':'');}
 function counts(){if(connection.isConnected())return;const groups=taskGroups([...taskMails.values()]);const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());el('today-count').textContent=groups.action.filter(m=>m.work_review?.due_date===today).length;el('overdue-count').textContent=groups.action.filter(m=>m.work_review?.due_date&&m.work_review.due_date<today).length;el('waiting-count').textContent=groups.waiting.length;}
 async function dashboard(){agenda?.start();board.hidden=connection.isConnected();if(agendaRoot)agendaRoot.hidden=!connection.isConnected();for(const id of ['action-list','inquiry-list'])el(id).closest('section').hidden=connection.isConnected();el('today-label').textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'long'}).format(new Date());el('outlook-category-filter').value='all';el('outlook-filter').value='reviewed';el('outlook-filter').dispatchEvent(new Event('change'));el('outlook-category-filter').dispatchEvent(new Event('change'));if(!connection.isConnected()){message('dashboard-message','담당 메일의 할 일을 표시합니다. 저장된 문의와 이력은 CRM 계정 연결 후 함께 확인할 수 있습니다.');return;}const active=taskSequence;try{const data=await connection.api('/api/dashboard');if(active!==taskSequence)return;for(const id of ['action-list','inquiry-list'])el(id).replaceChildren();for(const [rows,id] of [[data.actions,'action-list'],[data.inquiries,'inquiry-list']]){for(const row of rows){const li=document.createElement('li'),button=document.createElement('button');button.textContent=row.description||row.title;button.addEventListener('click',()=>work.open(row.inquiry_id||row.id));li.append(button);el(id).append(li);}if(!rows.length){const li=document.createElement('li');li.textContent='등록된 항목이 없습니다.';el(id).append(li);}}message('dashboard-message',data.truncated?'CRM 저장 업무는 최근 100건씩 표시합니다.':'담당 메일과 CRM에 저장된 업무를 함께 확인할 수 있습니다.');}catch(error){if(active===taskSequence)message('dashboard-message',error.message,true);}}
@@ -60,12 +60,25 @@ async function openTask(id){
 }
 const outlookApi=async(path,method,body)=>{
  const url=new URL(path,'http://127.0.0.1:4327'),parts=url.pathname.split('/'),mailId=parts[3];
- if(url.pathname==='/api/outlook'&&url.searchParams.has('inquiry_id')){const data=await connection.api(path,method,body);for(const mail of data.mails)protectedMailIds.add(mail.id);return data;}
+ if(url.pathname==='/api/outlook'&&url.searchParams.has('inquiry_id')){
+  const data=await connection.api(path,method,body),iid=url.searchParams.get('inquiry_id');
+  const sources=await connection.api('/api/followups?view=sources&inquiry_id='+encodeURIComponent(iid));
+  for(const mail of sources.mails){localSources.set(mail.id,iid);if(!data.mails.some(m=>m.id===mail.id))data.mails.push(mail);}data.hasMore||=sources.hasMore;
+  for(const mail of data.mails)protectedMailIds.add(mail.id);return data;
+ }
  if(connection.isConnected()&&url.pathname==='/api/outlook'&&url.searchParams.get('view')==='reviewed'){
   const local=await api(path),saved=await connection.api(path),byId=new Map(local.mails.map(m=>[m.id,m]));
-  for(const mail of saved.mails){mail.work_review=byId.get(mail.id)?.work_review;protectedMailIds.add(mail.id);}return saved;
+  for(const mail of saved.mails){mail.work_review=byId.get(mail.id)?.work_review;protectedMailIds.add(mail.id);}
+  if(!Number(url.searchParams.get('offset')||0)){
+   const analysis=await connection.api('/api/followups?view=analysis'),category=url.searchParams.get('category')||'all';
+   for(const t of analysis.threads.filter(t=>t.local_mail&&(category==='all'||t.local_mail.category_group===category))){
+    const mail={...t.local_mail,work_review:{task_bucket:t.current.status==='closed'?'responded':t.observation?.bucket==='waiting'?'waiting':'action',task_owner:'Candy',task_title:t.current.title,status:t.current.status,next_action:t.observation?.next_action||t.current.next_action,task_note:'확인된 담당 규칙과 메일 수신·발신 근거',due_date:t.current.actions.find(a=>a.status==='open')?.due_date}};
+    localSources.set(mail.id,t.inquiry_id);protectedMailIds.add(mail.id);if(!saved.mails.some(m=>m.id===mail.id))saved.mails.push(mail);
+   }
+  }return saved;
  }
  if(connection.isConnected()&&['/api/lookups','/api/inquiries'].includes(url.pathname))return connection.api(path,method,body);
+ if(connection.isConnected()&&mailId&&localSources.has(mailId)&&(!method||method==='GET'))return connection.api('/api/followups?view=sources&inquiry_id='+encodeURIComponent(localSources.get(mailId))+'&mail_id='+encodeURIComponent(mailId));
  if(connection.isConnected()&&mailId&&(protectedMailIds.has(mailId)||taskMails.get(mailId)?.handling?.include)){
   const data=await connection.api(path,method,body);
   // VPN mail is linked to a summary inquiry, never copied into a new inquiry.
@@ -76,7 +89,13 @@ const outlookApi=async(path,method,body)=>{
 };
 work=initWorkspace(connection.api,dashboard,message,{preserveLocal:true,onShow:viewChanged,outlook:{api:outlookApi,onList:(mails,listView)=>{if(listView==='reviewed'){taskMails=new Map(mails.map(m=>[m.id,m]));renderTaskBoard(board,mails,openTask);board.hidden=currentView==='dashboard'&&connection.isConnected();counts();}}}});
 const followupRoot=document.createElement('section');followupRoot.className='task-panel';followupRoot.id='crm-followups';el('dashboard-view').querySelector('.summary-strip').before(followupRoot);
-followups=initFollowups({root:followupRoot,api:connection.api,isConnected:connection.isConnected,open:id=>work.open(id),label:id=>taskMails.get(id)?.subject,onChecked:()=>{threadReview?.start();agenda?.start();}});
+followups=initFollowups({root:followupRoot,api:connection.api,isConnected:connection.isConnected,open:id=>work.open(id),label:id=>taskMails.get(id)?.subject,onChecked:async()=>{
+ const result=await connection.api('/api/followups','POST',{operation:'reconcile'});
+ if(result.imported)message('dashboard-message',`새 고객 요청 ${result.imported}건의 문의·할 일·수신 이력을 자동 등록했습니다.`);
+ if(result.recorded)message('dashboard-message',`새 메일 이력 ${result.recorded}건을 업무에 반영했습니다. 질문 해결·업무 완료 판단은 보존합니다.`);
+ if(result.remaining)message('dashboard-message',`새 요청 ${result.remaining}건이 더 남았습니다. 지금 메일 확인으로 이어서 처리하세요.`);
+ threadReview?.start();agenda?.start();
+}});
 const reviewRoot=document.createElement('details');reviewRoot.className='task-panel';reviewRoot.id='mail-thread-review';const reviewSummary=document.createElement('summary');reviewSummary.textContent='메일 대조 상세 · 할 일 제안';reviewRoot.append(reviewSummary);followupRoot.after(reviewRoot);
 threadReview=initThreadReview({root:reviewRoot,api:connection.api,isConnected:connection.isConnected,open:id=>work.open(id),prepare:(id,text)=>work.prepareAction(id,text)});
 agendaRoot=document.createElement('section');agendaRoot.id='work-agenda';agendaRoot.className='task-panel';agendaRoot.hidden=true;followupRoot.after(agendaRoot);

@@ -12,6 +12,18 @@ test('unknown workflow and unreviewed newer mail require judgment without replac
 });
 class Node{constructor(){this.children=[];this.textContent='';this.events={};}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}addEventListener(k,v){this.events[k]=v;}}
 const flush=()=>new Promise(r=>setImmediate(r));
+test('new inbound request replaces waiting projection while preserving saved Action and due date',()=>{
+ const row=t('a','waiting',[{id:'1',status:'open',description:'saved',due_date:'2026-10-12'}]);row.confirmed_review=false;
+ row.observation={bucket:'action',next_action:'새 고객 요청에 답변',evidence_count:1};
+ const groups=agendaGroups([row],{actions:[],inquiries:[]});
+ assert.equal(groups.action.length,1);assert.equal(groups.action[0].actions[0].due_date,'2026-10-12');
+});
+test('outbound observation asks for answer coverage and never auto completes an inquiry',()=>{
+ const row=t('a','action',[{id:'1',status:'open',description:'saved'}]);row.confirmed_review=false;row.observation={bucket:'decision',next_action:'회신 범위 확인'};
+ assert.equal(agendaGroups([row],{actions:[],inquiries:[]}).decision.length,1);
+ row.current.status='closed';assert.equal(agendaGroups([row],{actions:[],inquiries:[]}).decision.length,1);
+ delete row.observation;assert.equal(agendaGroups([row],{actions:[],inquiries:[]}).done.length,1);
+});
 test('late agenda result after logout cannot restore protected mail or counts',async()=>{
  globalThis.document={createElement:()=>new Node()};const root=new Node(),resolves=[];let counts=0;
  const agenda=initWorkAgenda({root,isConnected:()=>true,api:()=>new Promise(r=>resolves.push(r)),open(){},onCounts(){counts++;}});

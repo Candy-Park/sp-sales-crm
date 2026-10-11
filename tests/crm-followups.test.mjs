@@ -39,3 +39,58 @@ test('analysis attaches only the verified inquiry state and rejects unexpected s
  const status=await (await handleFollowups(request(),env,handler)).json();assert.equal(status.updates[0].later_received,0);assert.equal(status.updates[0].received,4);assert.deepEqual(status.updates[0].reviewed_followups,{received:2,sent:2});assert.equal(status.updates[1].later_received,1);
  env.localFollowups=async()=>({threads:[{mail_id:'unexpected',inquiry_id:iid}]});assert.equal((await handleFollowups(req(),env,handler)).status,503);
 });
+
+test('new request creates an actionable observation, protected data stays unchanged',async()=>{
+ const current={id:iid,title:'Synthetic',status:'new',updated_at:'2026-10-10T00:00:00Z'};
+ const action={id:mid,description:'Confirmed plan',due_date:'2026-10-12',status:'open'};
+ const env={localHandling:async()=>[target],localWorkReview:()=>({reviewed_on:'2026-10-10'}),localFollowups:async()=>({threads:[{mail_id:mid,inquiry_id:iid,timeline:[{occurred_at:'2026-10-11T00:00:00Z',direction:'received',held:false}],proposal:{stage:'요청 후보',next_action:'새 요청에 답변'}}]})};
+ const handler=async req=>{
+  assert.equal(req.method,'GET');const path=new URL(req.url).pathname;
+  return Response.json(path==='/api/me'?{user:{id:owner}}:path==='/api/outlook'?{hasMore:false,mails:[{id:mid,state:'linked',inquiry_id:iid,handling:{include:true,category:'고객 업무'}}]}:{inquiry:current,actions:[action]});
+ };
+ const response=await handleFollowups(new Request(origin+'/api/followups?view=analysis'),env,handler);
+ const thread=(await response.json()).threads[0];assert.equal(thread.observation.bucket,'action');assert.equal(thread.current.actions[0].due_date,'2026-10-12');assert.equal(thread.current.actions[0].status,'open');
+});
+test('HQ source choice checks customer ownership before persisting a local choice',async()=>{
+ let changes=0;const source='d'.repeat(64);
+ const env={localHandling:async()=>[target],localFollowups:async()=>({candidates:[{source_key:source,automatic_registration:false}]}),localDiscovery:async()=>{changes++;}};
+ const handler=async req=>{
+  const path=new URL(req.url).pathname;
+  if(path==='/api/me')return Response.json({user:{id:owner}});
+  if(path==='/api/outlook')return Response.json({hasMore:false,mails:[{id:mid,state:'linked',inquiry_id:iid,handling:{include:true,category:'고객 업무'}}]});
+  if(path==='/api/lookups')return Response.json({customers:[]});
+  return Response.json({inquiry:{id:iid,updated_at:'2026-10-11T00:00:00Z'},actions:[]});
+ };
+ const response=await handleFollowups(request('POST',{operation:'choose',source_key:source,customer_id:iid}),env,handler);
+ assert.equal(response.status,403);assert.equal(changes,0);
+ assert.equal((await handleFollowups(request('POST',{operation:'reconcile',owner:iid}),env,handler)).status,400);assert.equal(changes,0);
+});
+test('owned HQ choice resumes registration once and preserves the fixed import plan',async()=>{
+ let chosen=false,ack=false,writes=0;const source='d'.repeat(64);
+ const env={localHandling:async()=>[target],localFollowups:async()=>({candidates:[{source_key:source,automatic_registration:chosen,inquiry_id:ack?iid:null}]}),localDiscovery:async input=>{
+  if(input.mode==='choose'){chosen=true;return {chosen:true};}if(input.mode==='ack'){ack=true;return {saved:true};}if(input.mode==='events')return {events:[],held:0};
+  return {source_key:source,registration:{id:iid},action:{id:mid,due_date:'2026-10-14'},message:{id:mid}};
+ }};
+ const handler=async req=>{
+  const path=new URL(req.url).pathname;if(req.method==='POST'){writes++;return Response.json({result:path==='/api/inquiries'?iid:mid});}
+  if(path==='/api/me')return Response.json({user:{id:owner}});
+  if(path==='/api/outlook')return Response.json({hasMore:false,mails:[{id:mid,state:'linked',inquiry_id:iid,handling:{include:true,category:'고객 업무'}}]});
+  if(path==='/api/lookups')return Response.json({customers:[{id:iid,name:'Synthetic HQ'}]});
+  return Response.json({inquiry:{id:iid,updated_at:'2026-10-11T00:00:00Z'},actions:[]});
+ };
+ const response=await handleFollowups(request('POST',{operation:'choose',source_key:source,customer_id:iid}),env,handler);
+ assert.equal(response.status,200);assert.equal((await response.json()).imported,1);assert.equal(writes,3);assert.equal(ack,true);
+ assert.equal((await handleFollowups(request('POST',{operation:'choose',source_key:source,customer_id:iid}),env,handler)).status,409);assert.equal(writes,3);
+});
+test('local original lookup verifies native inquiry ownership before reading a source',async()=>{
+ let reads=0;const env={localHandling:async()=>[target],localFollowups:async()=>({}),localDiscovery:async()=>{reads++;return {mails:[]};}};
+ const handler=async req=>{
+  const path=new URL(req.url).pathname;if(path==='/api/me')return Response.json({user:{id:owner}});
+  if(path==='/api/outlook')return Response.json({hasMore:false,mails:[{id:mid,state:'linked',inquiry_id:iid,handling:{include:true,category:'고객 업무'}}]});
+  if(path==='/api/inquiries/'+iid)return Response.json({inquiry:{id:iid,updated_at:'2026-10-11T00:00:00Z'},actions:[]});
+  return Response.json({error:'foreign inquiry'},{status:404});
+ };
+ const req=id=>new Request(origin+'/api/followups?view=sources&inquiry_id='+id);
+ assert.equal((await handleFollowups(req(owner),env,handler)).status,404);assert.equal(reads,0);
+ assert.equal((await handleFollowups(req(iid),env,handler)).status,200);assert.equal(reads,1);
+});

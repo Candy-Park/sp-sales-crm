@@ -18,6 +18,11 @@ def mail(body='Please confirm specification', key='a', direction='received', tim
                 occurred_at=time, conversation_key=conversation*64 if conversation else None, attachments=[])
 
 class WorkflowTests(unittest.TestCase):
+    def test_chinese_requests_and_partial_answers_preserve_unresolved_work(self):
+        m=mail('請協助確認交期，謝謝。');result=propose(m,[m],'HQ 업무')
+        self.assertEqual((result['work_kind'],result['stage']),('납기 확인','요청 후보'));self.assertFalse(result['auto_apply'])
+        m=mail('交期尚未確認，稍後回覆。');result=propose(m,[m],'HQ 업무')
+        self.assertEqual(result['stage'],'중간 답변 후보');self.assertFalse(result['auto_apply'])
     def test_multilingual_quoted_request_is_not_latest(self):
         for header in ['发件人： old\n发送时间： yesterday\n收件人： Candy\n主题： request',
                        '보낸 사람: old\n날짜: yesterday\n제목: request',

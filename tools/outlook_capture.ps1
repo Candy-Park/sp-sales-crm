@@ -26,6 +26,28 @@ function Get-CrmCaptureFolders([ValidateSet('both','received','sent')][string]$S
     @(@{Name='Inbox';Id=6;Date='ReceivedTime';Direction='received'},@{Name='Sent';Id=5;Date='SentOn';Direction='sent'}) |
         Where-Object {$Selection -eq 'both' -or $_.Direction -eq $Selection}
 }
+function Get-CrmSenderDomain($MailItem) {
+    $crmAddress=[string]$MailItem.SenderEmailAddress
+    if ($crmAddress -notmatch '^[^\s<>@]+@([a-zA-Z0-9.-]+)$') {
+        try {$crmAddress=[string]$MailItem.Sender.GetExchangeUser().PrimarySmtpAddress} catch {$crmAddress=''}
+        if ($crmAddress -notmatch '^[^\s<>@]+@([a-zA-Z0-9.-]+)$') {
+            try {$crmAddress=[string]$MailItem.Sender.PropertyAccessor.GetProperty('http://schemas.microsoft.com/mapi/proptag/0x39FE001E')} catch {$crmAddress=''}
+        }
+    }
+    if ($crmAddress -match '^[^\s<>@]+@([a-zA-Z0-9.-]+)$') {return $Matches[1].ToLowerInvariant()}
+    return ''
+}
+function Get-CrmRecipientDomain($Recipient) {
+    $crmAddress=[string]$Recipient.Address
+    if ($crmAddress -notmatch '^[^\s<>@]+@([a-zA-Z0-9.-]+)$') {
+        try {$crmAddress=[string]$Recipient.AddressEntry.GetExchangeUser().PrimarySmtpAddress} catch {$crmAddress=''}
+        if ($crmAddress -notmatch '^[^\s<>@]+@([a-zA-Z0-9.-]+)$') {
+            try {$crmAddress=[string]$Recipient.AddressEntry.PropertyAccessor.GetProperty('http://schemas.microsoft.com/mapi/proptag/0x39FE001E')} catch {$crmAddress=''}
+        }
+    }
+    if ($crmAddress -match '^[^\s<>@]+@([a-zA-Z0-9.-]+)$') {return $Matches[1].ToLowerInvariant()}
+    return ''
+}
 function Assert-CrmCaptureWindow([datetime]$WindowStart,[datetime]$WindowEnd) {
     if ($WindowStart -ge $WindowEnd) {throw 'Start must precede End.'}
     if (($WindowStart.Ticks % [TimeSpan]::TicksPerMinute) -ne 0 -or ($WindowEnd.Ticks % [TimeSpan]::TicksPerMinute) -ne 0) {
@@ -114,7 +136,7 @@ $crmStore=$crmMatches[0]; $crmScope=Get-CrmScopeKey $StoreDisplayName
 $crmCulture=[Globalization.CultureInfo]::GetCultureInfo('en-US')
 $crmStartText=$Start.ToString('MM/dd/yyyy hh:mm tt',$crmCulture)
 $crmEndText=$End.ToString('MM/dd/yyyy hh:mm tt',$crmCulture)
-$crmRecords=[Collections.Generic.List[object]]::new(); $crmStatistics=[Collections.Generic.List[object]]::new()
+$crmRecords=[Collections.Generic.List[object]]::new(); $crmStatistics=[Collections.Generic.List[object]]::new();$crmSenderDomains=@{};$crmRecipientDomains=@{}
 $crmTotal=0
 $crmGraph=[Collections.Generic.List[object]]::new()
 if($crmConversationSelection.Count -gt 0) {
@@ -157,6 +179,14 @@ foreach ($crmSpec in @(Get-CrmCaptureFolders $Direction)) {
                 $crmAttachments.Add([pscustomobject]@{name=[string]$crmAttachment.FileName;size=[long]$crmAttachment.Size})
             }
             $crmOccurred=[datetime]$crmItem.($crmSpec.Date)
+            $crmSenderDomain=Get-CrmSenderDomain $crmItem
+            if (-not [string]::IsNullOrWhiteSpace($crmSenderDomain)) {$crmSenderDomains[$crmIdentity.source_key]=$crmSenderDomain}
+            if ($crmSpec.Direction -eq 'sent') {
+                $crmToDomains=[Collections.Generic.HashSet[string]]::new();$crmToResolved=$true
+                if ($crmItem.Recipients.Count -gt 100) {$crmToResolved=$false}
+                else {foreach($crmRecipient in $crmItem.Recipients){if($crmRecipient.Type -eq 1){$crmDomain=Get-CrmRecipientDomain $crmRecipient;if([string]::IsNullOrWhiteSpace($crmDomain)){$crmToResolved=$false}else{[void]$crmToDomains.Add($crmDomain)}}}}
+                $crmRecipientDomains[$crmIdentity.source_key]=@();if($crmToResolved){$crmRecipientDomains[$crmIdentity.source_key]=@($crmToDomains | Sort-Object)}
+            }
             $crmRecords.Add([pscustomobject]@{
                 source_key=$crmIdentity.source_key;identity_method=$crmIdentity.identity_method;direction=$crmSpec.Direction;
                 subject=[string]$crmItem.Subject;body=[string]$crmItem.Body;sender=[string]$crmItem.SenderEmailAddress;
@@ -175,6 +205,8 @@ if ($Mode -eq 'Capture') {
     [IO.File]::WriteAllText($crmTemporary,$crmJson,[Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $crmTemporary -Destination $crmDestination
     if($crmGraph.Count -gt 0){[IO.File]::WriteAllText($crmDestination+'.links.json',(ConvertTo-Json -InputObject @($crmGraph.ToArray()) -Depth 5 -Compress),[Text.UTF8Encoding]::new($false))}
+    [IO.File]::WriteAllText($crmDestination+'.domains.json',(ConvertTo-Json -InputObject $crmSenderDomains -Compress),[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($crmDestination+'.recipient-domains.json',(ConvertTo-Json -InputObject $crmRecipientDomains -Depth 4 -Compress),[Text.UTF8Encoding]::new($false))
 }
 [pscustomobject]@{mode=$Mode;batch_id=$crmBatchId;scope_key=$crmScope;start_local=$Start.ToString('s');end_exclusive_local=$End.ToString('s');checked_at_utc=[datetime]::UtcNow.ToString('o');folders=@($crmStatistics.ToArray());captured=$crmRecords.Count;uploaded=0} | ConvertTo-Json -Depth 5
 # Preserve the user's Outlook process and original mails. Do not Quit.

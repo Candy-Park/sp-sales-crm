@@ -49,3 +49,10 @@ test('Outlook closed skips collection without halting next weekday timer',async(
  const panel=initFollowups({root,isConnected:()=>true,api:async()=>({skipped:'outlook_not_running'}),open(){},now:()=>new Date('2026-10-12T11:00:00+09:00'),schedule:(fn,ms)=>{delay=ms;return 1;},cancel(){}});
  panel.start();await flush();assert.equal(delay,3600000);assert.match(root.children[1].textContent,/건너뛰었습니다/);panel.stop();
 });
+test('reconciliation failure keeps manual retry available and logout during reconciliation never rearms polling',async()=>{
+ globalThis.document={createElement:()=>new Element()};const root=new Element();let resume,timers=0;
+ const panel=initFollowups({root,isConnected:()=>true,api:async()=>({ready:true,last_checked_at:'2026-10-11T00:00:00Z'}),open(){},onChecked:()=>new Promise(r=>resume=r),schedule:()=>++timers,cancel(){}});
+ panel.start();await flush();panel.stop();resume();await flush();assert.equal(timers,0);assert.equal(root.children[2].disabled,true);
+ const retryRoot=new Element(),failed=initFollowups({root:retryRoot,isConnected:()=>true,api:async()=>({ready:true,last_checked_at:'2026-10-11T00:00:00Z'}),open(){},onChecked:async()=>{throw Error('Synthetic uncertain save');},schedule:()=>++timers,cancel(){}});
+ failed.start();await flush();assert.equal(retryRoot.children[2].disabled,false);assert.match(retryRoot.children[1].textContent,/uncertain save/);assert.equal(timers,0);
+});

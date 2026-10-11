@@ -10,7 +10,7 @@ from pathlib import Path
 from outlook_outbox import date, digest, valid_mail
 from outlook_review import newest_text
 
-VERSION='workflow-rules:v1'
+VERSION='workflow-rules:v2'
 NON_BUSINESS={'스팸','광고','뉴스레터','업무 알림','보안 알림','업무 제외'}
 
 def propose(mail, context, category):
@@ -30,13 +30,13 @@ def propose(mail, context, category):
     top=re.split(r'(?im)^\s*(?:best regards|regards|sincerely|감사합니다)\b',top)[0]
     if len(top)<len(mail['body']):result['evidence'].append('최신 본문을 이전 인용문·서명과 구분')
     kinds=[('청구·정산',r'\binvoice\b|\breimburse\w*\b|인보이스|청구|정산'),
-           ('납기 확인',r'\blead\s*time\b|납기'),('재고 확인',r'\bstock\b|재고'),
-           ('가격 확인',r'\bpric\w*\b|견적|가격'),('사양 확인',r'\bspec\w*\b|사양|규격')]
+           ('납기 확인',r'\blead\s*time\b|납기|交期'),('재고 확인',r'\bstock\b|재고|庫存|库存'),
+           ('가격 확인',r'\bpric\w*\b|견적|가격|價格|价格|報價|报价'),('사양 확인',r'\bspec\w*\b|사양|규격|規格|规格')]
     for kind,pattern in kinds:
         if re.search(pattern,top,re.I):result['work_kind']=kind;result['evidence'].append('최신 본문의 '+kind+' 표현');break
-    partial=bool(re.search(r'\b(?:need\w* to confirm|will (?:check|confirm|update)|await\w*|pending|not yet)\b|확인\s*(?:중|후)|확인해\s*(?:보|주)|추후|미확정',top,re.I))
-    negative=bool(re.search(r'\b(?:not|no|without|unavailable|cannot|can.t)\b|불가|없[습음는]|미승인',top,re.I))
-    request=bool(re.search(r'\b(?:please|request|could you|would you)\b|부탁|요청|문의',top,re.I))
+    partial=bool(re.search(r'\b(?:need\w* to confirm|will (?:check|confirm|update)|await\w*|pending|not yet)\b|확인\s*(?:중|후)|확인해\s*(?:보|주)|추후|미확정|待確認|待确认|確認中|确认中|稍後|稍后|尚未|需要確認|需要确认',top,re.I))
+    negative=bool(re.search(r'\b(?:not|no|without|unavailable|cannot|can.t)\b|불가|없[습음는]|미승인|無法|无法|沒有|没有|不能|暫無|暂无',top,re.I))
+    request=bool(re.search(r'\b(?:please|request|could you|would you|can you)\b|부탁|요청|문의|請|请|麻煩|麻烦|詢問|询问|需求|協助|协助',top,re.I))
     stock_answer=result['work_kind']=='재고 확인' and bool(re.search(r'\bin stock\b|재고\s*(?:있|보유)',top,re.I))
     if partial:
         result.update(stage='중간 답변 후보',waiting_on='HQ 확인 필요' if category=='HQ 업무' else '후속 답변 확인 필요',
