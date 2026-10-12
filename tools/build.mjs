@@ -6,5 +6,8 @@ await copyFile('web/index.html','dist/index.html');
 await copyFile('web/style.css','dist/style.css');
 await mkdir('dist/assets',{recursive:true});
 await copyFile('web/assets/sp-logo-transparent.png','dist/assets/sp-logo-transparent.png');
+await mkdir('dist/assets/fonts',{recursive:true});
+await copyFile('web/assets/fonts/PretendardVariable.woff2','dist/assets/fonts/PretendardVariable.woff2');
+await copyFile('web/assets/fonts/Pretendard-LICENSE.txt','dist/assets/fonts/Pretendard-LICENSE.txt');
 await copyFile('node_modules/bootstrap/dist/css/bootstrap.min.css','dist/bootstrap.css');
 console.log('CRM browser build complete');

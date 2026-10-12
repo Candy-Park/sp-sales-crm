@@ -53,6 +53,17 @@ input[type=checkbox],input[type=radio]{accent-color:var(--brand-navy)}
 
 .crm-login-dialog{width:min(460px,calc(100vw - 32px));border:1px solid #dce0e8;border-radius:16px;padding:28px;box-shadow:0 20px 80px #15264c44}.crm-login-dialog::backdrop{background:#15264c66}.crm-login-dialog h2{font-size:24px;color:var(--brand-navy)}.crm-login-dialog p{font-size:14px}.crm-login-dialog .form-control{margin-bottom:16px}.crm-login-dialog>button{margin-top:12px}.task-preview .mobile-nav{display:none}@media(max-width:760px){.task-preview .side-nav{overflow-x:auto}.task-preview .side-nav .nav-button{flex:0 0 auto;white-space:nowrap}}
 
+/* Local Pretendard v1.3.9; the fallback remains available while it loads. */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/assets/fonts/PretendardVariable.woff2') format('woff2');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+body { font-family: 'Pretendard', 'Malgun Gothic', Arial, sans-serif; }
+button, input, select, textarea { font-family: inherit; }
+
 /* Approved B / Frosted theme: scoped to the working CRM preview. */
 .crm-frosted {
   --glass-fill: .66;

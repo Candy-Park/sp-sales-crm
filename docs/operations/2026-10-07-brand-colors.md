@@ -43,3 +43,10 @@
 - 검증: 메인/검토/합성 번들 성공, Node163/163, 합성 메뉴/인증/메모 회귀 통과. 실제 업무2/대기2/판단0, 패킹10/12와 두 제품 범위 유지, 상세 기한 연장 버튼 표시, 메모 화면 연결, 원문/입력 흰 바탕·흐림none 확인. 효과 끄기/켜기,1584px 두 열과433px 한 열·수평 넘침 없음 확인. 임시 viewport 복원. 최종 CSS 수정 후 빌드/차이 검사와 Chrome 재확인. 개인 메일/업무 변경 저장은 실행하지 않음.
 - 증거/한계: D:/AI/projects/sp-sales-crm/outputs/2026-10-12-glass-theme/의 실제CRM 캡처를 로컬 보관한다. 모바일 실기/전체 대비 인증/GPU성능/OS 접근성 실기와 기존 장기 운영 검수는 미완료. 화면 효과 선택은 재로드 후 기본으로 돌아간다.
 - 커밋/원격/복원: 관련 파일만 선별 로컬 커밋, 원격 없음. Git 이력에서 이 테마 커밋을 일반 revert하고 메인/검토 번들을 다시 빌드하면 이전 테마로 복원된다. 전체 reset/데이터 되돌리기/백업 중복 생성 없음.
+
+## 2026-10-12 — Pretendard 글꼴 적용
+
+- 사용자 요청에 따라 한글·영문·숫자를 Pretendard로 통일했다. 공식 v1.3.9 태그(5c41199ea0024a9e0b2cb31735265056e5472d76)의 packages/pretendard/dist/web/variable/woff2/PretendardVariable.woff2를 원본 그대로 포함했다. 공식 SIL OFL 라이선스 전문도 web/assets/fonts/Pretendard-LICENSE.txt에 보관했다. 공식 출처: https://github.com/orioncactus/pretendard/tree/v1.3.9.
+- 변경: web/style.css의 로컬 @font-face/본문·조작 글꼴, web/assets/fonts/의 글꼴/라이선스, tools/build.mjs의 복사, tools/handling-preview-server.mjs·dev-server.mjs·mail-review-verification.mjs의 단일 허용 글꼴 경로. CDN 요청이나 OS 글꼴 설치 없이 같은 로컬 서버에서 제공한다. 기존 유리 테마/글씨 크기/기능/DB·원문·기한·메모 보존.
+- 검증: 빌드 성공, 세 서버 구문 검사, font/woff2 HTTP200·2,057,688bytes, 소스/빌드 SHA256 동일, Chrome 본문/제목 Pretendard 우선 적용·수평 넘침 없음과 시각 확인. 실제 데이터 변경 저장/메일 발송 없음. 글꼴 로딩 전에는 맑은 고딕/Arial 대체가 표시될 수 있다.
+- 실행/반영/복원: 4327 소유 프로세스가 프로젝트 서버인지 확인하고 해당 서버만 재시작했다. Chrome 저장 계정 연결 유지. 관련 파일만 로컬 커밋하며 원격 없음. 이 글꼴 커밋을 일반 revert하고 빌드/해당 서버 재시작하면 이전 글꼴로 복원된다. 새 백업/전역 설정/유료 패키지 없음. 기존 장기 운영 검수는 유지.

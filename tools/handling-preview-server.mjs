@@ -19,7 +19,7 @@ await mkdir(memoDirectory,{recursive:true});
 const memos=openMemoStore(memoDirectory+'memos.sqlite');
 // Confirm the same receipt matching used by the authenticated production route.
 reviewedMailPage(snapshot.classified,snapshot.owned,snapshot.decisions,{view:'reviewed',offset:0});
-const files=new Map([['/',[directory+'index.html','text/html; charset=utf-8']],['/app.js',[directory+'app.js','text/javascript; charset=utf-8']],['/style.css',['dist/style.css','text/css']],['/bootstrap.css',['dist/bootstrap.css','text/css']],['/assets/sp-logo-transparent.png',['dist/assets/sp-logo-transparent.png','image/png']]]);
+const files=new Map([['/assets/fonts/PretendardVariable.woff2',['dist/assets/fonts/PretendardVariable.woff2','font/woff2']],['/',[directory+'index.html','text/html; charset=utf-8']],['/app.js',[directory+'app.js','text/javascript; charset=utf-8']],['/style.css',['dist/style.css','text/css']],['/bootstrap.css',['dist/bootstrap.css','text/css']],['/assets/sp-logo-transparent.png',['dist/assets/sp-logo-transparent.png','image/png']]]);
 createServer(async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://glscckjmlwvxilzneqdf.supabase.co; frame-ancestors 'none'; form-action 'none'; base-uri 'none'");
  const json=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(value));};
