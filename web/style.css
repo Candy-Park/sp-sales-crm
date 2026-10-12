@@ -52,3 +52,100 @@ input[type=checkbox],input[type=radio]{accent-color:var(--brand-navy)}
 @media(max-width:760px){.brand-panel .wordmark{width:248px}.app-header .wordmark{width:150px}.account{max-width:48%;overflow-wrap:anywhere}.summary-strip{gap:22px;padding-inline:10px}.brand-message h1::after{margin-top:20px}}
 
 .crm-login-dialog{width:min(460px,calc(100vw - 32px));border:1px solid #dce0e8;border-radius:16px;padding:28px;box-shadow:0 20px 80px #15264c44}.crm-login-dialog::backdrop{background:#15264c66}.crm-login-dialog h2{font-size:24px;color:var(--brand-navy)}.crm-login-dialog p{font-size:14px}.crm-login-dialog .form-control{margin-bottom:16px}.crm-login-dialog>button{margin-top:12px}.task-preview .mobile-nav{display:none}@media(max-width:760px){.task-preview .side-nav{overflow-x:auto}.task-preview .side-nav .nav-button{flex:0 0 auto;white-space:nowrap}}
+
+/* Approved B / Frosted theme: scoped to the working CRM preview. */
+.crm-frosted {
+  --glass-fill: .66;
+  --glass-blur: 24px;
+  --glass-surface: rgba(255, 255, 255, var(--glass-fill));
+  --glass-shadow: 0 12px 32px #20244912, inset 0 1px 0 #ffffffed;
+  --muted: #515973;
+  background: #e9edf3;
+}
+.crm-frosted .task-preview {
+  min-height: 100vh;
+  background:
+    repeating-linear-gradient(115deg, transparent 0 90px, #ffffff16 90px 92px, transparent 92px 180px),
+    radial-gradient(ellipse at 8% 28%, #7dca2655, transparent 55%),
+    radial-gradient(ellipse at 92% 65%, #252d7e38, transparent 60%),
+    linear-gradient(135deg, #eef3e6, #e5eaf7 60%, #f4f6ed);
+  background-attachment: fixed;
+}
+.crm-frosted .task-preview :is(.app-header, .side-nav, .task-card, .task-panel, .summary-strip),
+.crm-frosted .crm-login-dialog {
+  background: var(--glass-surface);
+  border: 1px solid #ffffffd9;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+}
+.crm-frosted .task-preview :is(.task-card, .task-panel, .summary-strip) { border-radius: 16px; }
+.crm-frosted .task-preview .app-header { height: auto; min-height: 76px; gap: 20px; }
+.crm-frosted .account { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px 14px; }
+.crm-frosted .glass-toggle {
+  background: #ffffffed; color: var(--brand-navy); border: 1px solid #a5adbf;
+  border-radius: 8px; min-height: 36px; padding: 6px 12px; font-size: 13px;
+}
+.crm-frosted :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--brand-navy); outline-offset: 3px;
+}
+.crm-frosted .task-preview .summary-strip { padding: 18px 22px; }
+.crm-frosted .task-preview .side-nav .nav-button.active { background: #ffffffdc; color: var(--brand-navy); }
+.crm-frosted .task-preview .task-card { color: var(--ink); font-size: 15px; line-height: 1.7; }
+.crm-frosted .task-preview .task-card h3 { font-size: 20px; line-height: 1.5; }
+.crm-frosted .task-preview .task-card > strong {
+  display: block; margin: 14px 0; padding: 10px 12px; background: #fffffff0;
+  border-left: 3px solid var(--brand-green); border-radius: 6px; color: var(--brand-navy);
+}
+.crm-frosted .task-preview .task-card > button {
+  background: var(--brand-navy); color: white; border: 1px solid var(--brand-navy);
+  border-radius: 8px; padding: 8px 14px; min-height: 40px; margin-top: 8px;
+}
+.crm-frosted .task-preview .task-panel > button:not(.btn),
+.crm-frosted .task-preview #crm-followups button:not(.btn),
+.crm-frosted #work-agenda > button {
+  background: #ffffffed; color: var(--brand-navy); border: 1px solid #a5adbf;
+  border-radius: 8px; padding: 6px 12px; min-height: 36px; max-width: 100%; overflow-wrap: anywhere;
+}
+.crm-frosted #work-agenda > h2 { margin: 24px 0 14px !important; }
+.crm-frosted #work-agenda section.task-section { margin-top: 24px; }
+.crm-frosted .task-preview :is(pre, .original-text, table, input, textarea, select),
+.crm-frosted .crm-login-dialog :is(input, textarea, select) {
+  background: #fff; color: var(--ink); -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.crm-frosted .task-preview .task-card pre {
+  white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px;
+  padding: 14px; border: 1px solid #c8cedb; border-radius: 8px; max-height: 320px; overflow: auto;
+}
+/* The agenda is a layout wrapper, so its children are the only glass layers. */
+.crm-frosted .task-preview #work-agenda {
+  background: transparent; border: 0; box-shadow: none; padding: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.crm-frosted #work-agenda section.task-section {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start;
+}
+.crm-frosted #work-agenda section.task-section > :is(h2, h3, p) { grid-column: 1 / -1; }
+.crm-frosted #work-agenda .task-card { margin: 0; min-width: 0; }
+.crm-frosted[data-glass=off] { --glass-fill: 1; --glass-blur: 0px; }
+.crm-frosted[data-glass=off] .task-preview :is(.app-header, .side-nav, .task-card, .task-panel, .summary-strip),
+.crm-frosted[data-glass=off] .crm-login-dialog { -webkit-backdrop-filter: none; backdrop-filter: none; }
+@supports not (backdrop-filter: blur(1px)) {
+  .crm-frosted { --glass-fill: 1; }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .crm-frosted { --glass-fill: 1; --glass-blur: 0px; }
+  .crm-frosted .task-preview :is(.app-header, .side-nav, .task-card, .task-panel, .summary-strip),
+  .crm-frosted .crm-login-dialog { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crm-frosted *, .crm-frosted *::before, .crm-frosted *::after { animation: none !important; transition: none !important; }
+}
+@media (max-width: 760px) {
+  .crm-frosted #work-agenda section.task-section { grid-template-columns: 1fr; }
+  .crm-frosted .task-preview .app-header { align-items: flex-start; padding: 14px 18px; gap: 12px; }
+  .crm-frosted .account { max-width: 55%; font-size: 12px; }
+  .crm-frosted .glass-toggle { font-size: 12px; padding: 6px 8px; }
+  .crm-frosted .task-preview .side-nav { border-radius: 0; }
+  .crm-frosted .task-preview .summary-strip { padding: 16px; gap: 16px; }
+}

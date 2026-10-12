@@ -7,6 +7,7 @@ import {taskGroups} from '../web/mail-task-board.mjs';
 import {renderTaskBoard} from '../web/mail-task-board.mjs';
 import {renderTaskDetail} from '../web/mail-task-detail.mjs';
 import {initMemos} from '../web/local-memos.mjs';
+import {initGlassTheme} from '../web/glass-theme.mjs';
 const el=id=>document.getElementById(id);
 const message=(id,text,error=false)=>{el(id).textContent=text;el(id).classList.toggle('error',error);};
 const api=async(path,method)=>{
@@ -16,6 +17,7 @@ const api=async(path,method)=>{
 };
 el('login-view').hidden=true;el('workspace').hidden=false;
 el('workspace').classList.add('task-preview');
+initGlassTheme({root:document.body, controls:document.querySelector('.account')});
 for(const id of ['dashboard-view','register-view','history-view','detail-view','products-view'])if(el(id))el(id).hidden=true;
 el('user-email').textContent='업무 조회 · 메모는 이 PC에 저장';
 const view=el('outlook-view'),heading=view.querySelector('h1'),intro=heading.nextElementSibling;

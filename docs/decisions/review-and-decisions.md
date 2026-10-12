@@ -292,3 +292,7 @@ CRM 편집 시각 이후만 확인하면 실제 확인하지 않은 최근 메�
 반투명 색·뒤 배경 흐림·얇은 경계·하이라이트·그림자와 업무 타이포그래피를 함께 조정한다. 원문·입력·상태 표시는 불투명에 가까운 별도 표면으로 보호하고, 일반 글씨 대비4.5:1/큰 글씨3:1을 선택안의 배경 조건에서 확인한다. 현재 Bootstrap/DOM 기반을 유지하는 CSS 토큰 접근이며 새 프레임워크·유료 패키지를 요구하지 않는다. 웹 글래스모피즘과 Apple 네이티브 Liquid Glass/Windows Acrylic의 완전한 재현을 구분한다.
 
 근거: [MDN backdrop-filter](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/backdrop-filter), [투명도 감소 설정](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-transparency), [Microsoft Acrylic](https://learn.microsoft.com/en-us/windows/apps/design/style/acrylic), [W3C 대비 기준](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html). 상세 전략과 가상 업무 비교 예시는 로컬 산출물에 보관한다. 실제 CRM 스타일·기능·인증·데이터는 변경하지 않았다. 사용자 테마/강도 선택 후 실제 적용 범위를 확정한다.
+
+### 2026-10-12 — B/Frosted 테마 선택 확정
+
+사용자가 ‘니가 추천한걸로 하자’로 B안 적용을 승인했다. 기존 Bootstrap/DOM 위에 현재4327 업무 화면만 대상으로 CSS와 작은 효과 전환 모듈을 적용한다. 헤더/메뉴/카드에66% 흰 채움·24px 흐림을 사용하고, 원문·표·입력칸은 불투명 읽기 표면으로 유지한다. 중첩 흐림을 피하려고 업무 목록의 외곽 래퍼는 투명하게 두고 카드만 흐리게 한다. 활성 업무 카드 두 열/좁은 화면 한 열, SP 브랜드 색·공식 로고 유지. 새 프레임워크/유료 서비스/전역 설정/외부 배포는 범위에 포함하지 않는다. 현재 페이지 효과 끄기/켜기와 지원/접근성 대체 스타일을 제공한다.
