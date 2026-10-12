@@ -284,3 +284,11 @@ CRM 편집 시각 이후만 확인하면 실제 확인하지 않은 최근 메�
 ### 2026-10-12 — 1차 기능 마감과 운영 검수 분리 확정
 
 사용자는 오늘 1차 MVP를 기능 구현·검수 완료 후 실사용 시작으로 마감하고, 1주 실사용과 정각 자동 수집 장기 검수는 운영 검수로 이어가는 안을 선택했다. 기존 전체 합격 기준을 삭제하지 않고 단계별 마감을 기획서에 반영한다. 격리 기능 검수와 실제 운영 저장 증거를 구분하며 실사용 효과·누락 없는 운영을 검증 전 확정하지 않는다. 이 결정은 새 유료 서비스·OS 예약·외부 배포·자동 메일 발송을 승인하지 않는다.
+
+### 2026-10-12 — 글래스모피즘 테마 구현 전략 검토(미확정)
+
+사용자는 실제 적용 전에 구현 전략과 스타일 예시 보고를 요청했다. 현재 헤더의14px 흐림과 약85% 흰 카드 바탕을 확인했다. 잠정 비교안은 A/Pearl(흰 채움88%·8px), B/Frosted(흰 채움66%·24px), C/Night(네이비 채움56%·26px)이며 B를 업무 가독성과 유리감의 출발점으로 제안한다. 수치는 사용자 선택 전 예시 값이다.
+
+반투명 색·뒤 배경 흐림·얇은 경계·하이라이트·그림자와 업무 타이포그래피를 함께 조정한다. 원문·입력·상태 표시는 불투명에 가까운 별도 표면으로 보호하고, 일반 글씨 대비4.5:1/큰 글씨3:1을 선택안의 배경 조건에서 확인한다. 현재 Bootstrap/DOM 기반을 유지하는 CSS 토큰 접근이며 새 프레임워크·유료 패키지를 요구하지 않는다. 웹 글래스모피즘과 Apple 네이티브 Liquid Glass/Windows Acrylic의 완전한 재현을 구분한다.
+
+근거: [MDN backdrop-filter](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/backdrop-filter), [투명도 감소 설정](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-transparency), [Microsoft Acrylic](https://learn.microsoft.com/en-us/windows/apps/design/style/acrylic), [W3C 대비 기준](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html). 상세 전략과 가상 업무 비교 예시는 로컬 산출물에 보관한다. 실제 CRM 스타일·기능·인증·데이터는 변경하지 않았다. 사용자 테마/강도 선택 후 실제 적용 범위를 확정한다.
