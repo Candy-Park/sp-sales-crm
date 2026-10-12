@@ -7,10 +7,11 @@ import sys
 import uuid
 from contextlib import closing
 from pathlib import Path
+from datetime import timedelta,timezone
 from outlook_outbox import date, digest, valid_mail
 from outlook_review import newest_text
 
-VERSION='workflow-rules:v2'
+VERSION='workflow-rules:v3'
 NON_BUSINESS={'스팸','광고','뉴스레터','업무 알림','보안 알림','업무 제외'}
 
 def propose(mail, context, category):
@@ -38,6 +39,7 @@ def propose(mail, context, category):
     negative=bool(re.search(r'\b(?:not|no|without|unavailable|cannot|can.t)\b|불가|없[습음는]|미승인|無法|无法|沒有|没有|不能|暫無|暂无',top,re.I))
     request=bool(re.search(r'\b(?:please|request|could you|would you|can you)\b|부탁|요청|문의|請|请|麻煩|麻烦|詢問|询问|需求|協助|协助',top,re.I))
     stock_answer=result['work_kind']=='재고 확인' and bool(re.search(r'\bin stock\b|재고\s*(?:있|보유)',top,re.I))
+    shipment=re.search(r'\bwill\s+(?:arrange\s+(?:the\s+)?(?:shipping|shipment)(?:\s+of)?|ship)\s+(\d{1,5})\s*(?:pcs|pieces)\b[^\n.]{0,120}\b(today|tomorrow)\b',top,re.I)
     if partial:
         result.update(stage='중간 답변 후보',waiting_on='HQ 확인 필요' if category=='HQ 업무' else '후속 답변 확인 필요',
                       next_action='미답변 질문과 확정되지 않은 조건을 기록하고 추가 답변 확인')
@@ -49,6 +51,13 @@ def propose(mail, context, category):
         result.update(stage='답변 후보',waiting_on='답변 충분성 확인 필요',next_action='질문별 답변 범위와 수량·조건을 검토한 뒤 고객 회신 여부 확인')
     else:
         result['evidence'].append('요청·답변 충분성은 규칙만으로 확정할 수 없음')
+    if shipment and not (partial or negative or request) and int(shipment[1])>0:
+        planned=date(mail['occurred_at']).astimezone(timezone(timedelta(hours=9))).date()+timedelta(days=shipment[2].lower()=='tomorrow')
+        result.update(work_kind='출하 일정',stage='출하 예정 답변 후보',waiting_on='실제 출하·송장 확인 필요',
+                      shipping_plan=dict(date=planned.isoformat(),quantity=int(shipment[1]),actual_shipped=False),
+                      next_action=f"{planned.isoformat()} {int(shipment[1])}개 출하 예정 — 실제 출하와 송장 확인")
+        result['evidence'].append('최신 본문의 출하 예정 수량·상대 날짜를 서울 수신일 기준으로 해석')
+        result['caveats'].append('출하 예정 답변은 실제 출하·고객 수령 완료나 기존 기한 변경이 아닙니다.')
     if negative:result['evidence'].append('최신 본문의 부정·제약 표현도 함께 검토 필요')
     if result['work_kind']=='청구·정산':result['caveats'].append('메일 발송·첨부 존재만으로 접수·승인·지급을 판정하지 않습니다.')
     if result['work_kind']=='재고 확인':result['caveats'].append('재고 답변과 실제 발주·출하·배송 완료를 구분합니다.')

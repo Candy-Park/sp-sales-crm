@@ -12,6 +12,16 @@ test('unknown workflow and unreviewed newer mail require judgment without replac
 });
 class Node{constructor(){this.children=[];this.textContent='';this.events={};}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}addEventListener(k,v){this.events[k]=v;}}
 const flush=()=>new Promise(r=>setImmediate(r));
+test('latest mail action appears before the older saved Action while its date remains intact',async()=>{
+ globalThis.document={createElement:()=>new Node()};const root=new Node();
+ const row=t('a','waiting',[{id:'1',status:'open',description:'OLD saved plan',due_date:'2026-10-15'}]);row.confirmed_review=false;row.observation={bucket:'waiting',next_action:'2026-10-13 16개 출하 예정 — 실제 출하와 송장 확인'};
+ const agenda=initWorkAgenda({root,isConnected:()=>true,api:async path=>path.includes('analysis')?{threads:[row]}:{actions:[],inquiries:[]},open(){}});
+ agenda.start();await flush();
+ const section=root.children[3].children.find(s=>s.children.some(n=>n.textContent==='상대 답변·처리 대기 · 1'));
+ const card=section.children.find(n=>n.className==='task-card');
+ assert.match(card.children[2].textContent,/새 메일 기준.*2026-10-13/);assert.match(card.children[3].textContent,/OLD saved plan.*2026-10-15/);
+ agenda.stop();
+});
 test('new inbound request replaces waiting projection while preserving saved Action and due date',()=>{
  const row=t('a','waiting',[{id:'1',status:'open',description:'saved',due_date:'2026-10-12'}]);row.confirmed_review=false;
  row.observation={bucket:'action',next_action:'새 고객 요청에 답변',evidence_count:1};

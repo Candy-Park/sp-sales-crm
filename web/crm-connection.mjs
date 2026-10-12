@@ -16,7 +16,7 @@ export function initCRMConnection({onConnected,onDisconnected,fetcher=fetch,clie
   if(!session){show();throw Error('CRM 계정을 연결하면 저장된 업무를 사용할 수 있습니다.');}
   const response=await fetcher(path.replace(/^\/api\//,'/api/crm/'),{method,headers:{authorization:'Bearer '+session.access_token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(crmRequestTimeout(path,method,body))});
   const data=await response.json();if(active!==epoch)throw Error('로그인 상태가 변경됐습니다.');
-  if(!response.ok){if(response.status===401){clear();status('로그인이 만료됐습니다. 다시 연결하세요.',true);show();}throw Error(data.error||'CRM 요청을 확인하지 못했습니다.');}return data;
+  if(!response.ok){if(response.status===401){clear();status('로그인이 만료됐습니다. 다시 연결하세요.',true);show();}throw Error(data.error||data.message||'CRM 요청을 확인하지 못했습니다.');}return data;
  }
  el('login-form').addEventListener('submit',async event=>{
   event.preventDefault();if(!client)return;el('login-button').disabled=true;status('연결하고 있습니다.');const password=el('password').value;el('password').value='';

@@ -18,6 +18,15 @@ def mail(body='Please confirm specification', key='a', direction='received', tim
                 occurred_at=time, conversation_key=conversation*64 if conversation else None, attachments=[])
 
 class WorkflowTests(unittest.TestCase):
+    def test_announced_tomorrow_shipping_uses_seoul_date_but_never_claims_actual_shipment(self):
+        m=mail('We will arrange the shipping of 16 pcs 100G LR4 tomorrow.',time='2026-10-11T16:00:00.0000000Z')
+        result=propose(m,[m],'고객 업무')
+        self.assertEqual(result['shipping_plan'],dict(date='2026-10-13',quantity=16,actual_shipped=False))
+        self.assertIn('2026-10-13',result['next_action']);self.assertIn('송장',result['next_action']);self.assertFalse(result['auto_apply'])
+        for body in ['Please arrange the shipping of 16 pcs tomorrow.','We will not ship 16 pcs tomorrow.','We will check whether we can ship 16 pcs tomorrow.','We will ship 16 pcs tomorrow.\nFrom: old\nDate: yesterday\nSubject: old\nWe will ship 100 pcs today.']:
+            value=propose(mail(body),[mail(body)],'HQ 업무')
+            if body.startswith('We will ship'):self.assertEqual(value['shipping_plan']['quantity'],16)
+            else:self.assertNotIn('shipping_plan',value)
     def test_chinese_requests_and_partial_answers_preserve_unresolved_work(self):
         m=mail('請協助確認交期，謝謝。');result=propose(m,[m],'HQ 업무')
         self.assertEqual((result['work_kind'],result['stage']),('납기 확인','요청 후보'));self.assertFalse(result['auto_apply'])

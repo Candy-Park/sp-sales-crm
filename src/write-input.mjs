@@ -15,8 +15,8 @@ function date(value) {
   return value;
 }
 function time(value) {
-  // PostgreSQL emits microsecond precision; preserve it for exact optimistic comparisons.
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value))) throw new Error("시각을 확인해주세요.");
+  // Keep PostgreSQL microseconds and Outlook's seven-digit round-trip timestamps intact.
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,7})?(Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value))) throw new Error("시각을 확인해주세요.");
   date(value.slice(0, 10));
   const [, h, m, s] = /T(\d{2}):(\d{2}):(\d{2})/.exec(value);
   if (+h > 23 || +m > 59 || +s > 59) throw new Error("접수 시각을 확인해주세요.");

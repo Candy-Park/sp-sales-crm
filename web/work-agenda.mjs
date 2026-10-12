@@ -55,11 +55,11 @@ export function initWorkAgenda({root,api,isConnected,open,onCounts=()=>{}}){
     for(const row of groups[key]){
      const card=make('article','');card.className='task-card';card.append(make('h3',row.review?.task_title||row.title));
      card.append(make('p','담당: '+(row.review?.task_owner||row.actions.find(a=>a.waiting_target)?.waiting_target||'담당자 확인 필요')));
+     if(row.thread?.observation)card.append(make('strong','새 메일 기준 · '+(row.status==='closed'?'종료 후 추가 요청 검토 · ':'')+row.thread.observation.next_action));
      for(const a of row.actions)card.append(make('p',`${a.description||'내용 확인 필요'} · ${a.due_date?'기한 '+a.due_date:'확인일 미지정'}`));
      if(!row.actions.length&&row.next_action)card.append(make('p',row.next_action));
      if(row.thread){
       const t=row.thread,last=t.timeline.at(-1);card.append(make('p',`받은 ${t.received} / 보낸 ${t.sent} · ${t.confirmed_review?'확인한 업무 유지':'메일 변화 검토 필요'}`));
-      if(t.observation)card.append(make('p',(row.status==='closed'?'종료 후 새 메일: 기존 종료 이력을 보존하며 추가 요청 여부 확인 · ':'')+t.observation.next_action));
       if(last)card.append(make('p',`마지막 ${last.direction==='sent'?'발신':'수신'}: ${new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'short',timeStyle:'short'}).format(new Date(last.occurred_at))}`));
       const proof=make('details','');proof.append(make('summary','근거 메일 펼치기'));
       for(const m of t.timeline){proof.append(make('p',`${m.direction==='sent'?'보낸':'받은'} · ${m.occurred_at}`),make('pre',m.held?'인증정보 가능성·긴 본문으로 표시 보류':m.excerpt||'본문 없음'));}card.append(proof);

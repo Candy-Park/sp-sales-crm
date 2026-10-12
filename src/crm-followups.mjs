@@ -92,6 +92,7 @@ export async function handleFollowups(request,env,handler){
    for(const thread of result.threads){
     const last=thread.timeline.at(-1),kind=kinds.get(thread.inquiry_id+':'+last?.source_key);
     if(!thread.confirmed_review&&!last?.held&&['hq_sent','customer_sent'].includes(kind))thread.observation={bucket:'waiting',next_action:kind==='hq_sent'?'HQ에 문의한 메일 확인: HQ 답변을 기다리고 기한을 추적':'고객 회신 메일 확인: 고객 피드백을 기다리고 남은 질문을 확인',native_status_changed:false};
+    if(!thread.confirmed_review&&!last?.held&&kind==='hq_received'&&thread.proposal?.shipping_plan?.actual_shipped===false)thread.observation={bucket:'waiting',next_action:thread.proposal.next_action,native_status_changed:false};
    }
    result.history_held=facts.held;
   }

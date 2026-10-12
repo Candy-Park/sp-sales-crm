@@ -51,6 +51,21 @@ test('new request creates an actionable observation, protected data stays unchan
  const response=await handleFollowups(new Request(origin+'/api/followups?view=analysis'),env,handler);
  const thread=(await response.json()).threads[0];assert.equal(thread.observation.bucket,'action');assert.equal(thread.current.actions[0].due_date,'2026-10-12');assert.equal(thread.current.actions[0].status,'open');
 });
+test('verified HQ shipping plan updates the agenda without changing stored deadline or completion',async()=>{
+ const source='d'.repeat(64);let kind='hq_received';const calls=[];
+ const env={localHandling:async()=>[target],localFollowups:async()=>({threads:[{mail_id:mid,inquiry_id:iid,timeline:[{source_key:source,occurred_at:'2026-10-12T02:56:00.3100000Z',direction:'received'}],proposal:{stage:'출하 예정 답변 후보',next_action:'2026-10-13 16개 출하 예정 — 실제 출하와 송장 확인',shipping_plan:{date:'2026-10-13',quantity:16,actual_shipped:false}}}]}),localDiscovery:async()=>({events:[{inquiry_id:iid,source_key:source,message:{kind}}],held:0})};
+ const handler=async req=>{
+  calls.push(req.method);const path=new URL(req.url).pathname;
+  if(path==='/api/me')return Response.json({user:{id:owner}});
+  if(path==='/api/outlook')return Response.json({hasMore:false,mails:[{id:mid,state:'linked',inquiry_id:iid,handling:{include:true,category:'고객 업무'}}]});
+  return Response.json({inquiry:{id:iid,status:'waiting_for_hq',updated_at:'2026-10-10T00:00:00Z'},actions:[{id:mid,status:'open',due_date:'2026-10-15'}]});
+ };
+ const req=()=>new Request(origin+'/api/followups?view=analysis',{headers:{authorization:'Bearer SYNTHETIC'}});
+ const thread=(await (await handleFollowups(req(),env,handler)).json()).threads[0];
+ assert.equal(thread.observation.bucket,'waiting');assert.match(thread.observation.next_action,/2026-10-13 16개/);assert.equal(thread.observation.native_status_changed,false);
+ assert.equal(thread.current.actions[0].status,'open');assert.equal(thread.current.actions[0].due_date,'2026-10-15');assert.ok(calls.every(method=>method==='GET'));
+ kind='customer_received';assert.equal((await (await handleFollowups(req(),env,handler)).json()).threads[0].observation.bucket,'decision');
+});
 test('HQ source choice checks customer ownership before persisting a local choice',async()=>{
  let changes=0;const source='d'.repeat(64);
  const env={localHandling:async()=>[target],localFollowups:async()=>({candidates:[{source_key:source,automatic_registration:false}]}),localDiscovery:async()=>{changes++;}};

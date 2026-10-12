@@ -7,6 +7,14 @@ const uid='a11803c8-01ef-4563-95bb-c0024541be2c',iid='00000000-0000-4000-8000-00
 const env={SUPABASE_URL:'https://glscckjmlwvxilzneqdf.supabase.co',SUPABASE_PUBLISHABLE_KEY:'sb_publishable_synthetic'};
 const draft={id:iid,customer_name:'가상 고객',title:'가상 문의',channel:'manual',received_at:'2026-10-06T12:00:00+09:00',original_text:'원문 100G / 10 km',next_action:'HQ 확인'};
 const action={id:iid,kind:'hq_inquiry',description:'가상 HQ 문의',due_date:'2026-10-07',mandatory:true,waiting_target:'',waiting_since:null};
+
+test('Outlook seven-digit timestamp is accepted intact while invalid precision stays rejected',()=>{
+ const outlook='2026-10-11T01:00:00.1234560Z';
+ assert.equal(writeInput('register',{...draft,received_at:outlook}).received_at,outlook);
+ assert.equal(writeInput('register',{...draft,received_at:'2026-10-11T01:00:00.123456Z'}).received_at,'2026-10-11T01:00:00.123456Z');
+ assert.throws(()=>writeInput('register',{...draft,received_at:'2026-10-11T01:00:00.12345678Z'}));
+ assert.throws(()=>writeInput('register',{...draft,received_at:'2026-10-11T25:00:00.0000000Z'}));
+});
 test('new undated action gets three-day default while editing a legacy undated action preserves null',async()=>{
  const up=upstream();await handleApi(req('/api/inquiries/'+iid+'/actions','POST',{...action,due_date:null}),env,up.fetch);
  assert.equal(JSON.parse(up.seen.at(-1).init.body).p_data.due_date,defaultActionDue());
