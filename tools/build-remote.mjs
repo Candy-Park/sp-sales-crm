@@ -5,6 +5,7 @@ await build({entryPoints:['web/remote-app.mjs'],bundle:true,format:'esm',outfile
 const html=(await readFile('web/index.html','utf8')).replace(/src="\/app.js"/,'src="/app.js"');
 await writeFile(out+'/index.html',html);
 await copyFile('web/style.css',out+'/style.css');
+await copyFile('web/remote-headers',out+'/_headers');
 await copyFile('node_modules/bootstrap/dist/css/bootstrap.min.css',out+'/bootstrap.css');
 await mkdir(out+'/assets/fonts',{recursive:true});
 for(const name of ['PretendardVariable.woff2','Pretendard-LICENSE.txt'])await copyFile('web/assets/fonts/'+name,out+'/assets/fonts/'+name);
