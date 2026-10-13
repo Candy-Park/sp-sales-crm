@@ -97,6 +97,13 @@
 
 - 승인: 사용자가 공개 링크 설명 후 ‘그냥 다 제출해도 지금까지 상황은 문제없어’라고 하여 제한된 제출 사본 대신 현재 추적 프로젝트 전체의 공개 제출로 진행한다. GitHub Candy-Park 계정 조회 성공, 같은 sp-sales-crm 저장소는 아직 없음 확인.
 - 준비: README를 현재 기능/최초 계획 대비 보고/미완료/실행 조건으로 갱신하고 가상 시연2장을 docs/submission에 포함했다. 현재 운영4327과 소스 이력/자료 경로는 유지하며 공개 제출 예외를 기획서·결정 기록에 남겼다. 공개 링크 생성과 원격 확인 결과는 후속 절에 기록한다.
-- 검수: Git 전체515개 blob에서 private key/GitHub·OpenAI·Supabase secret/JWT 토큰 패턴을 검사해 후보0. secret 검사는 모든 가능한 비밀의 부재를 인증하는 것은 아니다. 추적 목록에 개인 .env·notes/메일DB·캐시·백업 없음 확인. 공개 .env.example은 publishable key 값이 비어 있다. 가상이미지/README 링크·git diff 검사. 이전 검수263이 아닌 Node163/Python94 근거 유지, 기능 코드 수정 없음.
+- 검수: Git 전체515개 blob에서 private key/GitHub·OpenAI·Supabase secret/JWT 토큰 패턴을 검사해 후보0. secret 검사는 모든 가능한 비밀의 부재를 인증하는 것은 아니다. 추적 목록에 개인 .env·notes/메일DB·캐시·백업 없음 확인. 공개 .env.example은 publishable key 값이 비어 있다. 가상이미지/README 링크·git diff 검사. 이전 Node163/Python94(총257개) 검수 근거 유지, 기능 코드 수정 없음.
 - 사용자 질문: 현재PC 사용에는 기존Supabase 설정/로컬서버/로그인이 필요하고 Cloudflare 배포는 필요 없음. 외부 브라우저 사용에는 웹/API 배포와 Windows Outlook Agent 분리가 필요함을 설명한다. 공개소스 제출을 실제 웹 운영 배포 완료로 취급하지 않는다.
 - 보존/복원: 실제DB/Auth/메일·메모/세션/기한 수정 없음. 전역Git설정·새자격증명·유료서비스 변경 없음. 로컬 문서 일반revert가 공개된 이력을 지우지는 않으며 원격 공개 변경은 별도 결정한다. 원격저장소를 임의삭제/강제push하지 않는다.
+
+## 2026-10-13 — 공개 GitHub 제출 링크 생성 완료
+
+- 원격: https://github.com/Candy-Park/sp-sales-crm, PUBLIC, 기본main. 준비커밋b45bb636d39a5e7a46b3530ca4fce1240bb5007a를 전체 이력과 함께push하고GitHub main/로컬HEAD 일치를확인했다. 기존 codex/login-access 브랜치를 유지하고 origin/main을추적하며 전역Git설정/기존다른원격 변경 없음.
+- 보고서의 제출2를 실제 공개링크로갱신했다. 현재 공개소스와 외부CRM 운영배포를구분한다. Drive 제출3은 업로드/공유 미승인 상태로 미완료다. 공개전 secret패턴 점검과 README/합성이미지 링크확인, 공개후 GitHub visibility/default branch/원격SHA조회 통과.
+- 후속 사용자 요청: 외부 주소로CRM 사용을원하며 ajsol.co.kr/ajsol.net 도메인만보유했다. 홈페이지가있다고 잘못전제한것을정정했다. 도메인선택질문에 무료방법을물어 아직접속도메인은미확정이다. 도메인NS조회co.kr은gabia,net은googledomains; 이는도메인등록대행/홈페이지존재증거가아니다. DNS/메일/도메인계정 변경 없음.
+- 외부접속: 현재Node/Windows Outlook/로컬메모 종속성분리, 실제Cloudflare계정/배포/선택도메인/접근제어 검수가남는다. 무료workers.dev 주소와기존도메인연결을검토한다. Supabase 설정/DB와기존4327을보존한다. 새웹배포완료로기록하지않는다.

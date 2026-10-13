@@ -16,9 +16,9 @@ AI와 함께 업무 흐름과 담당 규칙을 정리하고, Outlook 수집·문
 
 #### 제출2 — GitHub·웹사이트 링크
 
-현재 공개 GitHub 저장소 또는 외부에서 열 수 있는 웹사이트 링크는 없습니다. 회사 업무 자료를 다루는 로컬 MVP이며, 프로젝트 실행 후 해당 PC의 Chrome에서 확인할 수 있습니다. 외부 열람 증거는 제출3의 가상 데이터 시연 이미지로 제공합니다.
+공개 소스·결과물 링크: **https://github.com/Candy-Park/sp-sales-crm**. 프로젝트 추적 소스·SQL·검사·문서·Git 이력과 가상 시연2장을 포함한다. 개인 .env·notes·메일/DB 원본·캐시/백업은 Git 제외 상태를 유지한다. 이는 실제 CRM 접속용 웹사이트 주소가 아니라 과제 검토용 GitHub 링크다.
 
-위 문구는 링크가 없는 현재 상태를 설명하는 답변이다. `http://127.0.0.1:4327/`은 제출자의 PC에서만 열리므로 외부 심사자가 접근 가능한 링크로 제출하지 않는다. 첨부 양식에서 제출2는 필수 표시가 보이지 않았지만 전체 양식의 다른 조건은 확인하지 않았다.
+2026-10-13 사용자 승인 후 PUBLIC/main 생성·전체 이력 push 및 원격 commit 일치를 확인했다. `http://127.0.0.1:4327/`은 해당 PC에서만 열리므로 외부 심사자 웹사이트 링크로 제출하지 않는다. 외부 CRM 운영 주소는 후속 배포 대상이며 아직 없다.
 
 #### 제출3 — 이미지 또는 영상 링크
 
@@ -104,7 +104,7 @@ Outlook 받은·보낸 메일을 바탕으로 고객/HQ 업무의 다음 행동,
 | 격리 백업·복원 | 업무14·Auth26개 테이블의 원본 건수/해시 일치, 복원 계정 실제 로그인·Auth 사용자 조회·접근 매핑 통과 | Storage 서비스/파일·OAuth/SMTP·복원 CRM 전체 UI·재부팅 후 재로그인은 포함하지 않았다. |
 | 테마·글꼴 | 효과 전환, 실제1584px 두 열/433px 한 열·수평 넘침 없음, 로컬 글꼴HTTP200·소스/빌드 해시 동일 | 모바일 실기·전 구간 대비 인증·GPU 성능·OS 접근성 실기 검수는 별도다. |
 
-근거 기록: [로그인·복원](operations/2026-10-06-login-access.md), [업무·Action·경합](operations/2026-10-06-basic-work-write.md), [Outlook·자동 정리·마감](operations/2026-10-07-outlook-collection.md), [화면·폰트](operations/2026-10-07-brand-colors.md). 주요 구현 기준은 `d469dd0`(기능), `e72587a`(Frosted), `bfac81f`(Pretendard)이며 원격 반영/배포는 없다.
+근거 기록: [로그인·복원](operations/2026-10-06-login-access.md), [업무·Action·경합](operations/2026-10-06-basic-work-write.md), [Outlook·자동 정리·마감](operations/2026-10-07-outlook-collection.md), [화면·폰트](operations/2026-10-07-brand-colors.md). 주요 구현 기준은 `d469dd0`(기능), `e72587a`(Frosted), `bfac81f`(Pretendard)다. 개발 당시 로컬 마감 후2026-10-13 공개 소스 제출을 승인받아 GitHub에 반영했다. 실제 웹/API 배포는 아직 하지 않았다.
 
 ### 사용 방법과 운영 조건
 

@@ -308,3 +308,13 @@ CRM 편집 시각 이후만 확인하면 실제 확인하지 않은 최근 메�
 ### 2026-10-13 — 프로젝트 전체 소스 공개 제출 승인
 
 사용자는 제출용으로 범위를 줄인 사본 대신 현재까지의 프로젝트 전체를 제출해도 문제없다고 밝혔다. 앞선 공개 GitHub 링크 생성 맥락에 따라 Candy-Park 계정의 sp-sales-crm 공개 저장소에 현재 추적 소스·SQL·테스트·기획/보고/작업 문서와 Git 이력을 제출한다. Git 제외 개인 .env·메일/DB 원본·캐시/백업·인증정보는 제출 파일이 아니며 공개하지 않는다. 기존 로컬 전용 Git 결정은 이 소스 제출 범위에 한해 변경한다. 외부 웹 운영 배포·Cloudflare 계정 변경·PC 원격 접근 설정/새 권한 생성은 승인에 포함하지 않는다. 가상 데이터 시연2장은 제출 설명과 함께 포함한다.
+
+### 2026-10-13 — 외부 CRM 접속·보유 도메인·무료 방식 검토(미확정)
+
+사용자는 외부주소로CRM 접속을요청하고 ajsol.co.kr/ajsol.net 도메인만보유했다고정정했다. 기존홈페이지보유를전제하지않는다. 홈페이지/CRM을만들어 도메인에연결할수있으며등록대행사와호스팅업체는별개다. 도메인선택은아직미확정이며유료전환허용은없다.
+
+공식Cloudflare문서확인: Workers Free의스크립트요청100,000/일·CPU10ms/호출, 정적파일요청무료, 기본workers.dev주소지원. 자체도메인의Workers연결은활성Cloudflare zone이필요하다. 기존도메인갱신요금과호스팅무료조건은구분한다. 기존Supabase Free도자원제한/비활성일시중지조건이있어영구무제한무료운영을보장하지않는다. 회사도메인의메일/DNS레코드는먼저확인해야하며NS설정을임의변경하지않는다.
+
+제안은무료기본주소에서기존Supabase인증/업무API를검증한뒤선택도메인을연결하는순서다. 현재로컬메일/메모/실시간COM호출은그대로Workers로이전할수없어분리가필요하다. Windows Outlook수집은PC에남고PC미실행시는중지된다. 현재원격웹구현/배포/새Access권한생성은아직시작하지않았다.
+
+근거: https://developers.cloudflare.com/workers/platform/pricing/ , https://developers.cloudflare.com/workers/configuration/routing/workers-dev/ , https://developers.cloudflare.com/workers/configuration/routing/custom-domains/ , https://supabase.com/docs/guides/platform/free-project-pausing .
