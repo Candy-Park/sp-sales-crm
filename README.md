@@ -1,63 +1,74 @@
-# Source Photonics sales CRM
+# Source Photonics Sales CRM — 1차 MVP
 
-1인 영업 CRM의 MVP. 개발 범위와 검수 기준은 [기획서](docs/development-plan.md)를 따른다. 조사·결정과 작업 이력은 [문서 안내](docs/README.md)의 구분에 따라 별도로 관리한다.
+Codex와 함께 개발한 1인 영업 CRM입니다. Outlook 받은·보낸 메일에서 담당 업무와 다음 행동을 정리하고, 문의·기한·대기·제품 후보·HQ/고객 회신 이력을 관리합니다.
 
-## 현재 가능한 기능
+## 개발 결과
 
-로컬 로그인, Supabase Auth 인증, 허용 계정 확인, 본인 Dashboard 조회에 더해 수동 문의 등록·상세·종료 이력, 고객/담당자/프로젝트의 문의 내 생성과 이름/메모 수정, Action 등록·편집·완료·사유 있는 취소, 문의 Closed 처리를 구현했다. **2026-10-06 사용자 확인 후 새 DB의 업무 규칙과 쓰기 권한을 적용했고 사후 권한 검사를 통과했다.** 지정 계정 로그인 후 검증용 입력으로 실제 등록·수정·Action 처리·종료·이력 재조회를 확인했다.
+- 할 일·답변/처리 대기·판단 필요 중심의 홈 대시보드와 고객/HQ 업무 조회
+- 확인된 담당 요청의 문의·기본3일 Action·수신 이력 등록과 재실행 중복 방지
+- 받은·보낸 메일 대조, 후속 수신/발신 이력 및 원문 근거 표시
+- 평일 한국 시간10:00~18:00 매 정각 확인과 수동 확인 버튼
+- 문의/Action 등록·수정·기한3일 연장·완료·사유 있는 취소·종료 이력
+- 개인/업무 메모와 기한·완료 관리
+- 100G LR4/SR4 두 제품의 사양 필터·출처·후보 검토 이력
+- HQ 질문별 답변 검토, 수동 초안/번역/요약·복사·실제 발송 기록 구분
+- 로그인·허용목록·소유자 접근통제, 저장 충돌·응답 유실·401 정리
+- Source Photonics 로고/색, Frosted 글래스 테마·효과 전환과 로컬 Pretendard
 
-원문은 수정으로 덮어쓰지 않고 HTML 삽입 없이 출력한다. 저장 실패·충돌 시 입력을 유지하고 재조회할 수 있다. 같은 등록 요청은 재시도해도 하나의 Inquiry/Action으로 처리한다. 실제 저장 여부가 불확실한 경우 이력 확인 후 새 입력을 시작한다. Dashboard는 진행 문의의 미완료 Action만 표시하며 집계는 최대 100개씩 표시한 목록 기준이다. 문의 조회에는 종료된 문의도 포함하고 고객·프로젝트 필터와 100개 단위 페이지를 지원한다.
+AI는 기획·코딩·디버깅·검증에 활용했습니다. CRM 자체의 AI 요구사양 추출·초안 생성·번역 서비스는 아직 연결하지 않았습니다. 이메일 발송·질문 해결·출하/수령·업무 종료는 별도 근거와 사용자 판단이 필요합니다.
 
-실제 DB 두 세션에서 Action/종료의 상호 행 잠금 대기를 확인하고 검사 변경을 ROLLBACK했다. 경합 후 커밋 순서별 결과, 토큰 만료 UI, Outlook 실제 수집, 제품검색·AI·배포는 아직 검증/개발이 남는다. 전체 MVP 완료가 아니다. 실제 발송에 따른 Waiting 상태 전환은 커뮤니케이션 단계에서 연결한다.
+## 계획과 실제 결과
 
-## 로컬 실행
+- [최초 보존 계획서 — 2026-10-06 v0.2](docs/development-plan-initial.md)
+- [현행 기획서](docs/development-plan.md)
+- [개발 보고서 — 제출 설명·최초 계획 비교·구현/검수/미완료](docs/development-report.md)
+- [문서 안내와 작업 기록](docs/README.md)
 
-제품 검색·문의 후보 연결도 구현했다. 사용자 선택 범위는 100G LR4/SR4 두 제품이다. **2026-10-07 사용자 확인 후 제품 DB 적용·ROLLBACK 검사·사후 권한 검사·Advisor 조회를 마쳤다.** 제품 화면의 실제 로그인 E2E는 남아 있으며 격리 화면/단위 테스트와 구분한다. 사양 조건 일치, 불일치, 근거 미확인을 구분하고 후보 선택 근거와 기록 당시 자료를 보존한다. 판매·최신본·Packing·가격·납기를 확정하지 않는다. 상세 절차는 docs/operations/2026-10-07-product-search.md를 따른다.
+1차 MVP는 현재 기능 범위를 확정한 마감입니다. 실제 신규 요청 자동 저장 사례·장기 정각 수집·1주 실사용 합격은 운영 검수로 남아 있습니다. 기능 완료를 최초 계획 전체 달성으로 확대하지 않습니다.
 
-HQ·고객의 수동 초안·원문·실제 발송 기록, 질문별 답변 검토와 이력, 대기 대상, 미답변 질문의 종료 차단도 구현했다. **2026-10-07 사용자 확인 후 회신 DB 적용·실제 합성 ROLLBACK·사후 권한 검사를 통과했다.** 최신 4317 서버로 전환했다. 실제 로그인 화면 E2E는 남아 있으며 격리 UI 검증과 구분한다. AI 호출·자동 메일 발송은 없으며 상세 근거는 [회신 작업 기록](docs/operations/2026-10-07-communication.md)에 남긴다.
+## 가상 데이터 시연
 
-Node.js와 npm이 필요하다. 패키지 버전은 package-lock.json으로 고정한다.
+실제 CRM UI 모듈을 가짜 API/메모리 데이터로 검수한 화면입니다. 실제 고객·메일·DB·자격증명이 없으며 운영 저장 성공 화면을 의미하지 않습니다.
 
-```powershell
-npm ci --ignore-scripts
-npm run build
-npm run dev
-```
+### 신규 요청 → 내가 할 일
 
-브라우저에서 http://127.0.0.1:4317 을 연다. 서버는 이 PC의 loopback 주소만 사용하며 외부 공개 배포가 아니다.
+![가상 신규 요청과 기한](docs/submission/01-synthetic-new-request.jpg)
 
-`.env.example`을 참고해 `.env`에 새 프로젝트 URL과 **publishable 공개 키만** 설정한다. 비밀번호, secret/service_role 키, AI 키는 넣지 않는다. 잘못된 키나 기존 프로젝트 URL이면 연결을 차단한다. `.env`와 개인 notes는 Git에서 제외한다.
+### 고객 회신 → 답변 대기
 
-로그인 세션은 브라우저 메모리에만 유지한다. 새로고침 또는 새 탭에서는 다시 로그인한다. 실제 비밀번호는 사용자 직접 입력하며 앱 로그와 파일에 남기지 않는다.
+![가상 고객 회신 후 대기](docs/submission/02-synthetic-reply-waiting.jpg)
 
-## DB 접근 검증
+## 설치·기능 검수
 
-기초 구조: db/schema-basic.sql. 처음 구성된 뒤 다시 실행하면 테이블 충돌이 나므로 자동 반복 적용하지 않는다. 이 SQL은 Supabase migration history 기록이 아니다.
-
-db/verify-login-access.sql은 가상 사용자·고객·문의·Action·연락처·프로젝트 및 임시 권한을 하나의 트랜잭션에서 검증하고 전부 ROLLBACK한다. 실제 사용자 로그인 성공 검증과 구분한다.
-
-db/enable-login-read.sql은 지정 계정 허용과 SELECT 권한 적용을 위한 별도 최종 작업이다. 2026-10-06 사용자 최종 확인 후 적용했다. INSERT/UPDATE/DELETE를 허용하지 않으며 anon 조회 권한도 없다. db/verify-login-read.sql로 적용 후 상태와 테스트 데이터가 남지 않았는지 확인한다. 수정 기능을 구현할 때 정책과 DB 업무 규칙을 다시 검증한다.
-
-db/verify-basic-schema.sql은 초기의 클라이언트 권한 0개를 기대하는 **권한 개방 전 구조 검사**다. SELECT 적용 후에는 db/verify-login-read.sql을 사용한다.
-
-기본 업무 쓰기: db/basic-work-write.sql은 원문·revision·종료 규칙과 SECURITY INVOKER RPC를 정의한다. db/enable-basic-write.sql은 기존 허용 계정의 소유자 RLS를 유지하면서 authenticated INSERT/UPDATE와 업무 RPC EXECUTE만 추가한다. DELETE, sales_access 변경, anon 접근은 허용하지 않는다. 적용 대상은 새 프로젝트 `glscckjmlwvxilzneqdf`뿐이다.
-
-`node tools/prepare-write-validation.mjs`는 지정 D outputs에 최종 적용 SQL과 ROLLBACK 검증 SQL을 생성한다. ROLLBACK SQL은 규칙·임시 권한·합성 데이터 검증을 같은 트랜잭션에서 수행하고 모두 되돌린다. 최종 적용 SQL은 **권한 적용 확인 후** 실행한다. 적용 후에는 db/verify-basic-write.sql을 사용한다. 과거 db/verify-login-read.sql은 읽기 전용 단계의 스냅샷 검사이므로 쓰기 적용 후 실행하면 의도대로 실패한다.
-
-기본 업무 최종 SQL은 이미 적용됐다. 컬럼·제약·함수 생성이 포함되므로 반복 적용하지 않는다. 보안 점검 중 발견한 관리용 rls_auto_enable 함수의 클라이언트 EXECUTE는 db/harden-rls-event-access.sql로 제한했다. ensure_rls 이벤트 트리거와 자동 RLS 동작은 유지·검증했다. Security Advisor는 오류 0건, 유출 비밀번호 보호 비활성 경고 1건이다. 해당 보호는 유료 플랜 기능이며 무료 사용 조건을 유지했다.
-
-회신 DB: `node tools/prepare-communication.mjs`는 D outputs에 검토용 최종/ROLLBACK SQL과 해시를 만든다. db/communication.sql은 업무 규칙만, db/enable-communication.sql은 SELECT/INSERT 및 RPC EXECUTE 권한만 정의한다. 실행 시점 확인과 합성 ROLLBACK 통과 전 실제 적용하지 않는다. 적용 후 db/verify-communication.sql로 검사한다. 회신 DB와 db/communication-indexes.sql의 새 외래키 인덱스는 이미 적용/사후 검증했으므로 반복 실행하지 않는다. 준비/적용 SQL은 반복 실행용 migration 도구가 아니며 이미 반영한 제품 SQL을 재생성/재적용하지 않는다.
-
-## 검증
+Node.js와 Python이 필요합니다.
 
 ```powershell
+npm ci
 npm test
 npm run build
-python -m unittest discover -s tests -v
+python -X utf8 -m unittest discover -s tests -p 'test_outlook*.py'
 ```
 
-API 단위 테스트는 네트워크 응답을 가상으로 제공한다. 실제 RLS 테스트 및 사용자 직접 로그인 확인으로 보완한다. 작업 기록은 docs/operations에 보관한다.
+2026-10-13 검수 기록: Node163/163·Outlook Python94/94·브라우저 빌드 성공. 자동 검사를 실제 운영 성공/업무 개선율로 해석하지 않습니다.
 
-`node tools/ui-fixture-server.mjs`는 `127.0.0.1:4318`에서 실제 화면 소스와 가상 Auth/DB 응답을 사용해 UI를 검증한다. Supabase에 연결하지 않으며 테스트 빌드는 D outputs/ui-fixture에 저장한다. 운영 빌드(`npm run build`)는 가상 SDK를 사용하지 않는다. fixture의 테스트 계정과 내용을 실제 자료 검증으로 보고하지 않는다.
+로그인이나 실제 DB 없이 UI를 확인하려면:
 
-src/worker.mjs는 향후 Workers 연결을 위한 동일 API 핸들러다. 실제 Cloudflare 설정·ASSETS binding·HTTPS 배포 검증은 아직 하지 않았다.
+```powershell
+node tools/mail-review-verification.mjs
+```
+
+Chrome에서 `http://127.0.0.1:4330/`을 엽니다. 가상 신규 요청 도착·수동 확인·고객 발신 시험을 사용할 수 있습니다. 포트가 다른 프로그램/OS 예약에 묶인 환경에서는 별도의 사용 가능한 loopback 포트 구성이 필요합니다. 검수 데이터는 다시 열면 초기화됩니다.
+
+## 실제 PC 운영
+
+현재 실제 MVP는 로컬 Chrome의 `http://127.0.0.1:4327/`에서 사용합니다. `start-crm.cmd`는 프로젝트 서버를 확인·실행합니다. 기존 개인 `.env`, 승인된 Supabase 계정/스키마와 D드라이브 보호된 메일 검토 자료가 필요합니다. 공개 저장소만 복제하면 이 개인 운영 자료는 제공되지 않습니다.
+
+자동 확인에는 로컬 서버·CRM 연결·탭 유지와 Classic Outlook 실행이 필요합니다. PC/탭이 닫힌 상태의 상시 수집 및 외부 웹 배포는 포함하지 않습니다. `src/worker.mjs`는 Workers용 API 기반이며 실제 Cloudflare 배포는 미완료입니다.
+
+기존 적용 SQL은 반복 적용용 migration 도구가 아닙니다. 자기 환경에서 사용할 때에는 스키마/권한과 각 작업 기록을 먼저 확인해야 합니다. 운영 DB에 검수용 SQL을 임의 실행하지 않습니다.
+
+## 저장소 범위
+
+프로젝트 소스·SQL·테스트·계획서·보고서·작업 기록과 Git 이력을 포함합니다. `.gitignore` 대상인 실제 `.env`, 개인 notes, 메일/DB 원본·캐시·백업, 인증정보와 node_modules/dist는 포함하지 않습니다. `.env.example`은 값이 없는 공개 설정 예시입니다.
+
+Pretendard는 공식 v1.3.9 글꼴을 포함하며 [SIL Open Font License 전문](web/assets/fonts/Pretendard-LICENSE.txt)을 함께 제공합니다.
