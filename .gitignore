@@ -9,3 +9,7 @@ __pycache__/
 .superpowers/
 *.log
 .playwright-mcp/
+.wrangler/
+dist-remote/
+.dev.vars
+.dev.vars.*

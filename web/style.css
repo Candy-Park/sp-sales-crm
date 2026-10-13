@@ -160,3 +160,15 @@ button, input, select, textarea { font-family: inherit; }
   .crm-frosted .task-preview .side-nav { border-radius: 0; }
   .crm-frosted .task-preview .summary-strip { padding: 16px; gap: 16px; }
 }
+
+/* Keep desktop navigation visible while the business content scrolls. */
+@media (min-width: 761px) {
+  .side-nav {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}

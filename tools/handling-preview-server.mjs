@@ -5,11 +5,16 @@ import {readFile,mkdir} from 'node:fs/promises';
 import {reviewedMailPage} from '../src/outlook-handling.mjs';
 import {openMemoStore} from '../src/local-memos.mjs';
 import {handleLocalMemos} from '../src/local-memo-api.mjs';
+import {handleApi} from '../src/api.mjs';
+import {handleRemoteApi} from '../src/remote-api.mjs';
+import {createRemoteAgent} from './remote-agent.mjs';
 const config={SUPABASE_URL:process.env.SUPABASE_URL??'https://glscckjmlwvxilzneqdf.supabase.co',SUPABASE_PUBLISHABLE_KEY:process.env.SUPABASE_PUBLISHABLE_KEY??''};
 config.localHandling=localHandling;
 config.localFollowups=localFollowups;
 config.localDiscovery=localDiscovery;
-const origin='http://127.0.0.1:4327';
+const port=Number(process.env.CRM_LOCAL_PORT||4327);
+if(!Number.isSafeInteger(port)||port<1024||port>65535)throw Error('Invalid local port');
+const origin='http://127.0.0.1:'+port;
 const directory='D:/AI/projects/sp-sales-crm/scratch/handling-preview-20261009/';
 const snapshot=JSON.parse(await readFile(directory+'snapshot.json','utf8'));
 config.localWorkReview=id=>snapshot.classified.find(m=>m.id===id)?.work_review;
@@ -17,16 +22,31 @@ config.redactedMailIds=new Set(snapshot.decisions.filter(d=>d.case_id==='M20-10'
 const memoDirectory='D:/AI/projects/sp-sales-crm/sources/memos/';
 await mkdir(memoDirectory,{recursive:true});
 const memos=openMemoStore(memoDirectory+'memos.sqlite');
+const remoteOrigin=process.env.CRM_REMOTE_ORIGIN||'';
+config.remoteOrigin=remoteOrigin;
+if(remoteOrigin&&!/^https:\/\/sp-sales-crm\.[a-z0-9-]+\.workers\.dev$/.test(remoteOrigin))throw Error('Invalid approved remote CRM origin');
+const agent=createRemoteAgent({env:config,origin:remoteOrigin});
+const connectedApi=async(request,env)=>{
+ const path=new URL(request.url).pathname;
+ const response=remoteOrigin&&path.startsWith('/api/memos')?await handleRemoteApi(request,env):await handleApi(request,env);
+ if(response.ok&&remoteOrigin){const me=path==='/api/me'?response.clone():await handleApi(new Request(new URL('/api/me',request.url),{headers:request.headers}),env);if(me.ok){const data=await me.json();agent.connect(request.headers.get('authorization'),data.user.id);}}
+ return response;
+};
 // Confirm the same receipt matching used by the authenticated production route.
 reviewedMailPage(snapshot.classified,snapshot.owned,snapshot.decisions,{view:'reviewed',offset:0});
 const files=new Map([['/assets/fonts/PretendardVariable.woff2',['dist/assets/fonts/PretendardVariable.woff2','font/woff2']],['/',[directory+'index.html','text/html; charset=utf-8']],['/app.js',[directory+'app.js','text/javascript; charset=utf-8']],['/style.css',['dist/style.css','text/css']],['/bootstrap.css',['dist/bootstrap.css','text/css']],['/assets/sp-logo-transparent.png',['dist/assets/sp-logo-transparent.png','image/png']]]);
 createServer(async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://glscckjmlwvxilzneqdf.supabase.co; frame-ancestors 'none'; form-action 'none'; base-uri 'none'");
  const json=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(value));};
- if(req.headers.host!=='127.0.0.1:4327'||(req.headers.origin&&req.headers.origin!==origin)){json(403,{error:'허용되지 않은 요청입니다.'});return;}
+ if(req.headers.host!==new URL(origin).host||(req.headers.origin&&req.headers.origin!==origin)){json(403,{error:'허용되지 않은 요청입니다.'});return;}
  try{
   const url=new URL(req.url,origin),path=url.pathname;
-  if(await handleCRMBridge(req,res,path,config,origin))return;
+  if(path==='/api/crm/remote-agent'&&req.method==='GET'){
+   const verified=await handleApi(new Request(new URL('/api/me',origin),{headers:req.headers}),config);
+   if(!verified.ok){json(verified.status,{error:'PC 연결 확인에 로그인이 필요합니다.'});return;}
+   json(200,agent.status());return;
+  }
+  if(await handleCRMBridge(req,res,path,config,origin,connectedApi))return;
   if(await handleLocalMemos(req,res,path,memos,origin))return;
   if(req.method!=='GET'){json(405,{error:'메일과 업무 조회는 읽기 전용입니다.'});return;}
   if(path==='/api/outlook/local'){json(200,snapshot.status);return;}
@@ -44,4 +64,4 @@ createServer(async(req,res)=>{
   const file=files.get(path);if(!file){json(404,{error:'요청한 기능이 없습니다.'});return;}
   res.setHeader('Content-Type',file[1]);res.end(await readFile(file[0]));
  }catch{json(503,{error:'미리보기 데이터를 확인하지 못했습니다.'});}
-}).listen(4327,'127.0.0.1',()=>console.log('CRM task preview with local memos ready on 127.0.0.1:4327'));
+}).listen(port,'127.0.0.1',()=>console.log('CRM task preview ready on '+origin));

@@ -8,6 +8,13 @@ class Element{
  addEventListener(name,fn){this.events[name]=fn;}
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+test('remote PC-off and queued refresh are distinct from scan success; automatic UI reads never duplicate Agent collection',async()=>{
+ globalThis.document={createElement:()=>new Element()};const root=new Element(),calls=[];let timer,checked=0;
+ const panel=initFollowups({root,remote:true,isConnected:()=>true,api:async(...args)=>{calls.push(args);return {remote:true,agent_online:false,queued:args[1]==='POST',ready:false,last_synced_at:null};},open(){},onChecked:()=>checked++,now:()=>new Date('2026-10-13T11:00:00+09:00'),schedule:fn=>{timer=fn;return 1;},cancel(){}});
+ panel.start();await flush();assert.match(root.children[1].textContent,/PC.*미연결/);
+ await timer();await flush();assert.deepEqual(calls.map(c=>c[1]),['GET','GET']);
+ root.children[2].events.click();await flush();assert.match(root.children[1].textContent,/대기/);assert.equal(checked,0);panel.stop();
+});
 test('polls existing scan then schedules Seoul hourly check, stops and clears on disconnect',async()=>{
  globalThis.document={createElement:()=>new Element()};const root=new Element(),timers=new Map();let next=0,connected=true,calls=[];
  const data=[{running:true},{ready:true,last_checked_at:'2026-10-10T15:00:00Z',updates:[{mail_id:'m',inquiry_id:'i',later_sent:1,later_received:2}]}];

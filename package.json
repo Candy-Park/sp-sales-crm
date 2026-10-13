@@ -6,6 +6,8 @@
   "scripts": {
     "test": "node --test",
     "build": "node tools/build.mjs",
+    "build:remote": "node tools/build-remote.mjs",
+    "deploy:remote": "node --env-file-if-exists=.env tools/deploy-remote.mjs",
     "dev": "node --env-file-if-exists=.env tools/dev-server.mjs"
   },
   "dependencies": {
@@ -14,6 +16,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "wrangler": "^4.150.0"
   }
 }

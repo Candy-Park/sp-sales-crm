@@ -1,0 +1,12 @@
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {spawn} from 'node:child_process';
+import {publicConfig} from '../src/public-config.mjs';
+const config=publicConfig(process.env);if(!config)throw Error('Valid publishable CRM configuration required');
+const input=JSON.parse(await readFile('wrangler.jsonc','utf8'));
+await mkdir('.wrangler',{recursive:true});
+const deployment={...input,main:resolve(input.main),assets:{...input.assets,directory:resolve(input.assets.directory)},vars:{SUPABASE_URL:config.url,SUPABASE_PUBLISHABLE_KEY:config.publishableKey}};
+await writeFile('.wrangler/remote-deploy.jsonc',JSON.stringify(deployment));
+const args=process.argv.slice(2);if(args.some(a=>a!=='--dry-run'))throw Error('Unsupported deployment argument');
+const child=spawn(process.execPath,['node_modules/wrangler/bin/wrangler.js','deploy','--config','.wrangler/remote-deploy.jsonc',...args],{stdio:'inherit',windowsHide:true});
+child.on('exit',code=>process.exitCode=code||0);

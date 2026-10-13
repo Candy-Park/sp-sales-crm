@@ -1,7 +1,7 @@
-export function initMemos({quickRoot,pageRoot,api}){
+export function initMemos({quickRoot,pageRoot,api,autoload=true,cloud=false}){
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
- let items=[],category='all',completed=false,busy=false,sequence=0;
- const status=el('p','','message');status.setAttribute('role','status');pageRoot.append(el('h1','메모'),el('p','이 PC에 저장됩니다. 개인 메모와 업무 메모를 함께 관리하세요.','section-hint'));
+ let items=[],category='all',completed=false,busy=false,sequence=0,epoch=0;
+ const status=el('p','','message');status.setAttribute('role','status');pageRoot.append(el('h1','메모'),el('p',cloud?'계정에 저장됩니다. PC가 꺼져도 개인 메모와 업무 메모를 관리할 수 있습니다.':'이 PC에 저장됩니다. 개인 메모와 업무 메모를 함께 관리하세요.','section-hint'));
  const editor=el('section',null,'task-panel'),list=el('div',null,'memo-list'),controls=el('div',null,'memo-controls');pageRoot.append(editor,controls,status,list);
  const contexts=[];
  function form(root,prefix,title){
@@ -18,16 +18,17 @@ export function initMemos({quickRoot,pageRoot,api}){
   f.addEventListener('submit',async event=>{
    event.preventDefault();if(busy)return;const input={content:text.value.trim(),category:select.value,dueDate:date.value||null};if(!input.content){error.textContent='메모 내용을 입력하세요.';return;}
    const payload=JSON.stringify({id:ctx.editing?.id,revision:ctx.editing?.revision,input});if(ctx.request?.payload!==payload)ctx.request={payload,id:crypto.randomUUID()};setBusy(true);error.classList.remove('error');error.textContent='저장 중…';
-   try{const data=ctx.editing?await api('/api/memos/'+ctx.editing.id,'PATCH',{requestId:ctx.request.id,revision:ctx.editing.revision,patch:input}):await api('/api/memos','POST',{requestId:ctx.request.id,input});replace(data.memo);reset();error.textContent='저장했습니다.';}
-   catch(e){error.textContent=e.message||'저장하지 못했습니다. 입력은 유지됩니다.';error.classList.add('error');}
-   finally{setBusy(false);}
+   const active=epoch;
+   try{const data=ctx.editing?await api('/api/memos/'+ctx.editing.id,'PATCH',{requestId:ctx.request.id,revision:ctx.editing.revision,patch:input}):await api('/api/memos','POST',{requestId:ctx.request.id,input});if(active!==epoch)return;replace(data.memo);reset();error.textContent='저장했습니다.';}
+   catch(e){if(active===epoch){error.textContent=e.message||'저장하지 못했습니다. 입력은 유지됩니다.';error.classList.add('error');}}
+   finally{if(active===epoch)setBusy(false);}
   });return ctx;
  }
  const quick=form(quickRoot,'memo-quick','빠른 메모'),full=form(editor,'memo-editor','메모 작성');
  function setBusy(value){busy=value;for(const ctx of contexts)for(const control of ctx.f.querySelectorAll('textarea,input,select,button'))control.disabled=value;for(const control of list.querySelectorAll('input,button'))control.disabled=value;}
  function replace(memo){sequence++;items=[memo,...items.filter(m=>m.id!==memo.id)];render();}
  function edit(memo){if(busy)return;full.editing=memo;full.request=null;full.text.value=memo.content;full.select.value=memo.category;full.date.value=memo.dueDate||'';full.cancel.hidden=false;full.save.textContent='수정 저장';full.error.textContent='';full.text.focus();editor.scrollIntoView?.({block:'start',behavior:'smooth'});}
- async function toggle(memo){if(busy)return;setBusy(true);status.textContent='저장 중…';try{const {memo:saved}=await api('/api/memos/'+memo.id,'PATCH',{requestId:crypto.randomUUID(),revision:memo.revision,patch:{completed:!memo.completedAt}});replace(saved);status.textContent=saved.completedAt?'완료 기록에 보관했습니다.':'미완료로 되돌렸습니다.';}catch(e){status.textContent=e.message;render();}finally{setBusy(false);}}
+ async function toggle(memo){if(busy)return;const active=epoch;setBusy(true);status.textContent='저장 중…';try{const {memo:saved}=await api('/api/memos/'+memo.id,'PATCH',{requestId:crypto.randomUUID(),revision:memo.revision,patch:{completed:!memo.completedAt}});if(active!==epoch)return;replace(saved);status.textContent=saved.completedAt?'완료 기록에 보관했습니다.':'미완료로 되돌렸습니다.';}catch(e){if(active===epoch){status.textContent=e.message;render();}}finally{if(active===epoch)setBusy(false);}}
  function filterButton(text,value,kind){const button=el('button',text,'btn btn-outline-secondary');button.type='button';button.addEventListener('click',()=>{if(kind==='category')category=value;else completed=value;render();});button.dataset.kind=kind;button.dataset.value=String(value);controls.append(button);}
  for(const [value,label] of [['all','전체'],['personal','개인'],['work','업무']])filterButton(label,value,'category');filterButton('미완료',false,'completed');filterButton('완료',true,'completed');const refresh=el('button','새로고침','btn btn-outline-secondary');refresh.type='button';refresh.addEventListener('click',load);controls.append(refresh);
  function render(){
@@ -38,5 +39,6 @@ export function initMemos({quickRoot,pageRoot,api}){
   for(const memo of visible){const card=el('article',null,'task-panel memo-card'),label=el('label'),check=el('input');check.type='checkbox';check.checked=Boolean(memo.completedAt);check.disabled=busy;check.setAttribute('aria-label',memo.completedAt?'완료 취소':'완료 체크');check.addEventListener('change',()=>toggle(memo));label.append(check,el('span',memo.content));card.append(label,el('p',`${memo.category==='personal'?'개인':'업무'} · 기한 ${memo.dueDate||'없음'}${!memo.completedAt&&memo.dueDate&&memo.dueDate<today?' · 기한 지남':''}`,'section-hint'));const modify=el('button','수정','btn btn-outline-secondary');modify.type='button';modify.disabled=busy;modify.addEventListener('click',()=>edit(memo));card.append(modify);list.append(card);}
  }
  async function load(){const active=++sequence;status.textContent='메모 불러오는 중…';try{const data=await api('/api/memos');if(active!==sequence)return;items=data.memos;render();status.textContent='';}catch(e){if(active===sequence)status.textContent=e.message||'메모를 불러오지 못했습니다.';}}
- void load();return {load,hasDraft:()=>contexts.some(c=>c.text.value.trim()),quick};
+ function reset(){epoch++;sequence++;items=[];category='all';completed=false;for(const ctx of contexts)ctx.reset();setBusy(false);list.replaceChildren();status.textContent='';}
+ if(autoload)void load();return {load,reset,hasDraft:()=>contexts.some(c=>c.text.value.trim()),quick};
 }

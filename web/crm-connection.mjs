@@ -1,7 +1,7 @@
 import {createClient} from '@supabase/supabase-js';
 export function crmRequestTimeout(path,method,body){return path==='/api/followups'&&method==='POST'&&['reconcile','choose'].includes(body?.operation)?120000:15000;}
 export function initCRMConnection({onConnected,onDisconnected,fetcher=fetch,clientFactory=createClient}){
- const el=id=>document.getElementById(id);let client=null,epoch=0,connected=false;
+ const el=id=>document.getElementById(id);let client=null,epoch=0,connected=false,cloudMemos=false;
  const dialog=document.createElement('dialog');dialog.className='crm-login-dialog';dialog.setAttribute('aria-label','CRM 계정 연결');
  const title=document.createElement('h2');title.textContent='CRM 계정 연결';const hint=document.createElement('p');hint.textContent='저장된 문의와 업무 이력을 확인할 때 기존 업무 계정으로 연결하세요.';
  const cancel=document.createElement('button');cancel.type='button';cancel.className='btn btn-outline-secondary';cancel.textContent='나중에';cancel.addEventListener('click',()=>{el('password').value='';dialog.close();});
@@ -24,6 +24,6 @@ export function initCRMConnection({onConnected,onDisconnected,fetcher=fetch,clie
   catch(error){clear(false);await client.auth.signOut({scope:'local'});status(error.message,true);}finally{el('login-button').disabled=false;}
  });
  el('logout-button').addEventListener('click',async()=>{clear();await client?.auth.signOut({scope:'local'});});
- const ready=(async()=>{try{const response=await fetcher('/api/crm/config',{cache:'no-store'}),config=await response.json();if(!response.ok||config.url!=='https://glscckjmlwvxilzneqdf.supabase.co'||!config.publishableKey?.startsWith('sb_publishable_'))throw Error('CRM 연결 설정을 확인해야 합니다.');client=clientFactory(config.url,config.publishableKey,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:false}});client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'&&connected)clear();});el('login-button').disabled=false;status('');}catch(error){status(error.message,true);}})();
- return {api,ready,isConnected:()=>connected,show};
+ const ready=(async()=>{try{const response=await fetcher('/api/crm/config',{cache:'no-store'}),config=await response.json();if(!response.ok||config.url!=='https://glscckjmlwvxilzneqdf.supabase.co'||!config.publishableKey?.startsWith('sb_publishable_'))throw Error('CRM 연결 설정을 확인해야 합니다.');cloudMemos=config.cloudMemos===true;client=clientFactory(config.url,config.publishableKey,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:false}});client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'&&connected)clear();});el('login-button').disabled=false;status('');}catch(error){status(error.message,true);}})();
+ return {api,ready,isConnected:()=>connected,cloudMemos:()=>cloudMemos,show};
 }

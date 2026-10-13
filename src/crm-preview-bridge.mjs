@@ -5,7 +5,7 @@ export async function handleCRMBridge(req,res,path,env,origin,handler=handleApi)
  if(!path.startsWith('/api/crm/'))return false;
  const json=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(body));};
  if(req.headers.host!==new URL(origin).host||(req.headers.origin&&req.headers.origin!==origin)){json(403,{error:'허용되지 않은 요청입니다.'});return true;}
- if(path==='/api/crm/config'&&req.method==='GET'){const config=publicConfig(env);json(config?200:503,config||{error:'CRM 연결 설정을 확인해야 합니다.'});return true;}
+ if(path==='/api/crm/config'&&req.method==='GET'){const config=publicConfig(env);json(config?200:503,config?{...config,...(env.remoteOrigin?{cloudMemos:true}:{})}:{error:'CRM 연결 설정을 확인해야 합니다.'});return true;}
  const translated=path.replace('/api/crm/','/api/');
  const reviewedLink=req.method==='POST'&&typeof env.localHandling==='function'&&/^\/api\/outlook\/([0-9a-f-]{36})\/link$/i.exec(translated);
  if(translated.startsWith('/api/outlook')&&!reviewedLink&&(req.method!=='GET'||translated==='/api/outlook/local')){json(404,{error:'메일 수집·변경은 기존 검토 메뉴에서만 처리합니다.'});return true;}

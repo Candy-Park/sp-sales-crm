@@ -1,0 +1,12 @@
+import {build} from 'esbuild';
+import {mkdir,copyFile,readFile,writeFile} from 'node:fs/promises';
+const out='dist-remote';await mkdir(out,{recursive:true});
+await build({entryPoints:['web/remote-app.mjs'],bundle:true,format:'esm',outfile:out+'/app.js',minify:true});
+const html=(await readFile('web/index.html','utf8')).replace(/src="\/app.js"/,'src="/app.js"');
+await writeFile(out+'/index.html',html);
+await copyFile('web/style.css',out+'/style.css');
+await copyFile('node_modules/bootstrap/dist/css/bootstrap.min.css',out+'/bootstrap.css');
+await mkdir(out+'/assets/fonts',{recursive:true});
+for(const name of ['PretendardVariable.woff2','Pretendard-LICENSE.txt'])await copyFile('web/assets/fonts/'+name,out+'/assets/fonts/'+name);
+await copyFile('web/assets/sp-logo-transparent.png',out+'/assets/sp-logo-transparent.png');
+console.log('Authenticated remote CRM assets built (no local data inputs)');

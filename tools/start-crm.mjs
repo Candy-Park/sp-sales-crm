@@ -4,7 +4,9 @@ import {openSync,closeSync,existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve,dirname} from 'node:path';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const address='http://127.0.0.1:4327/';
+const port=Number(process.env.CRM_LOCAL_PORT||4327);
+if(!Number.isSafeInteger(port)||port<1024||port>65535)throw Error('올바른 로컬 포트를 지정하세요.');
+const address='http://127.0.0.1:'+port+'/';
 async function state(){
  try{
   const response=await fetch(address,{signal:AbortSignal.timeout(1200)});
@@ -14,7 +16,7 @@ async function state(){
 }
 async function start(){
  const before=await state();
- if(before==='other')throw Error('4327 포트를 다른 프로그램이 사용 중입니다. 기존 프로그램은 종료하지 않았습니다.');
+ if(before==='other')throw Error(port+' 포트를 다른 프로그램이 사용 중입니다. 기존 프로그램은 종료하지 않았습니다.');
  if(before==='ready'){console.log('CRM 서버가 이미 실행 중입니다. '+address);return;}
  for(const path of ['.env','dist/style.css','dist/bootstrap.css','D:/AI/projects/sp-sales-crm/scratch/handling-preview-20261009/index.html','D:/AI/projects/sp-sales-crm/scratch/handling-preview-20261009/app.js','D:/AI/projects/sp-sales-crm/scratch/handling-preview-20261009/snapshot.json']){
   if(!existsSync(resolve(root,path)))throw Error('CRM 실행 자료가 준비되지 않았습니다. 프로젝트의 빌드·로컬 검토 자료를 확인하세요.');

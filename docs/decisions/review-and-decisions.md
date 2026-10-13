@@ -318,3 +318,11 @@ CRM 편집 시각 이후만 확인하면 실제 확인하지 않은 최근 메�
 제안은무료기본주소에서기존Supabase인증/업무API를검증한뒤선택도메인을연결하는순서다. 현재로컬메일/메모/실시간COM호출은그대로Workers로이전할수없어분리가필요하다. Windows Outlook수집은PC에남고PC미실행시는중지된다. 현재원격웹구현/배포/새Access권한생성은아직시작하지않았다.
 
 근거: https://developers.cloudflare.com/workers/platform/pricing/ , https://developers.cloudflare.com/workers/configuration/routing/workers-dev/ , https://developers.cloudflare.com/workers/configuration/routing/custom-domains/ , https://supabase.com/docs/guides/platform/free-project-pausing .
+
+### 2026-10-13 — 무료 외부 접속 설계·직접 구현 승인(확정)
+
+위 미확정 검토 이후 사용자는 PC가 꺼져도 저장된 업무를 조회·수정하는 방식을 선택하고 remote-access-design.md의 Cloudflare Free + 기존 Supabase + PC Outlook 분리를 승인했다. remote-access-plan.md 순서에 따라 이 대화에서 직접 구현·검수하는 실행도 승인했다. workers.dev 무료 기본 주소를 사용하며 ajsol.co.kr/ajsol.net의 DNS 변경과 유료 전환은 승인하지 않았다.
+
+사용자가 Chrome에 로그인하고 공식 Wrangler의 계정 조회·Workers 배포 최소 OAuth 권한을 승인했다. 배포 인증은 Windows Credential Manager와 암호화된 Wrangler 파일에 보관한다. CRM PC Agent의 업무 계정 인증은 기존 로그인에서 전달한 검증된 액세스 토큰을 메모리에만 유지한다. CRM 자격증명을 OS에 영구 저장하거나 전역 예약/자동 시작을 추가하지 않는다. 기존 SQLite 메모가 없는 현재 계정에서 클라우드 메모를 기준으로 전환하고 로컬 자료는 보존한다.
+
+구현·운영 적용·검증 결과는 기획서가 아닌 [외부 접속 작업 기록](../operations/2026-10-13-remote-access.md)에 남긴다.
