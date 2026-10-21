@@ -11,3 +11,8 @@ test('partial mail-save explanation reaches the user instead of a generic CRM er
  await connection.ready;
  await assert.rejects(()=>connection.api('/api/followups','POST',{operation:'reconcile'}),/SYNTHETIC partial save/);
 });
+test('403 checks account access and clears private screens only for denied accounts',async()=>{
+ const nodes=new Map();globalThis.document={createElement:()=>new Element(),body:new Element(),getElementById:id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);}};
+ let denied=false,cleared=0;const connection=initCRMConnection({onConnected(){},onDisconnected(){cleared++;},clientFactory:()=>({auth:{getSession:async()=>({data:{session:{access_token:'SYNTHETIC'}}}),onAuthStateChange(){}}}),fetcher:async path=>path==='/api/crm/config'?Response.json({url:'https://glscckjmlwvxilzneqdf.supabase.co',publishableKey:'sb_publishable_SYNTHETIC'}):path==='/api/crm/me'&&!denied?Response.json({user:{id:'synthetic'}}):Response.json({error:'denied'},{status:403})});await connection.ready;
+ await assert.rejects(connection.api('/api/memos'));assert.equal(cleared,0);denied=true;await assert.rejects(connection.api('/api/memos'));assert.equal(cleared,1);
+});

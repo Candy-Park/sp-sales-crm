@@ -34,3 +34,6 @@ test('uncertain completion with failed refetch locks next toggle until successfu
  globalThis.document={createElement:t=>new Element(t)};let fail=false,patches=0;const memo={id:'p',content:'SYNTHETIC',category:'work',createdAt:'2026-10-21',revision:1};const memos=initMemos({quickRoot:new Element(),pageRoot:new Element(),autoload:false,api:async(path,method)=>{if(method){patches++;fail=true;throw Error('lost response');}if(fail)throw Error('offline');return {memos:[memo]};}});
  await memos.load();await assert.rejects(memos.toggle('p'),/결과 미확인/);await assert.rejects(memos.toggle('p'),/결과 미확인/);assert.equal(patches,1);fail=false;assert.equal(await memos.load(),true);
 });
+test('failed completion followed by unchanged server state reports failure to home without inverse retry',async()=>{
+ globalThis.document={createElement:t=>new Element(t)};let patches=0;const memo={id:'p',content:'SYNTHETIC',category:'work',createdAt:'2026-10-21',completedAt:null,revision:1};const page=new Element();const memos=initMemos({quickRoot:new Element(),pageRoot:page,autoload:false,api:async(path,method)=>{if(method){patches++;throw Error('conflict');}return {memos:[memo]};}});await memos.load();await assert.rejects(memos.toggle('p'),/반영되지|결과/);assert.equal(patches,1);assert.match(text(page),/반영되지/);
+});
