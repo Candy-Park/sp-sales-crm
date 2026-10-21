@@ -1,3 +1,4 @@
+import {validateMemoOrigin} from './memo-import.mjs';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
 const fail=()=>{throw Error('외부 저장 입력을 확인하세요.');};
@@ -6,8 +7,10 @@ export function memoInput(body){
  const create=keys(body,['requestId','input']);
  if(!create&&!keys(body,['requestId','revision','patch'])||!uuid.test(body?.requestId||''))fail();
  const patch=create?body.input:body.patch;
- if(!object(patch)||!Object.keys(patch).length||Object.keys(patch).some(k=>!['content','category','dueDate','completed'].includes(k)))fail();
- if(create&&!keys(patch,['content','category','dueDate']))fail();
+ const imported=create&&keys(patch,['content','category','dueDate','origin','homeTask']);
+ if(!object(patch)||!Object.keys(patch).length||Object.keys(patch).some(k=>!(imported?['content','category','dueDate','origin','homeTask']:['content','category','dueDate','completed']).includes(k)))fail();
+ if(create&&!imported&&!keys(patch,['content','category','dueDate']))fail();
+ if(imported)validateMemoOrigin(patch.origin,patch);
  if(!create&&(!Number.isSafeInteger(body.revision)||body.revision<1))fail();
  const result={...patch};
  if('content'in patch){if(typeof patch.content!=='string'||!patch.content.trim()||patch.content.length>10000||patch.content.includes('\0'))fail();result.content=patch.content.trim();}
