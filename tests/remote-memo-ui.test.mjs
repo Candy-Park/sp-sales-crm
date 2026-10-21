@@ -22,3 +22,11 @@ test('cloud memo logout clears draft and blocks late private load or save result
  memos.reset();resolve({memo:{content:'PRIVATE SAVED',id:'x',createdAt:'2026-10-13',completedAt:null,category:'work'}});await saving;
  assert.equal(memos.hasDraft(),false);assert.doesNotMatch(text(page),/PRIVATE SAVED/);assert.equal(textarea.value,'');
 });
+
+test('shared memo publishes current state, preserves provenance and refetches uncertain toggles before reuse',async()=>{
+ globalThis.document={createElement:t=>new Element(t)};const page=new Element(),quick=new Element();let state=[],gets=0,patches=0;
+ const item={id:'m',content:'SYNTHETIC phone',category:'work',createdAt:'2026-10-21',completedAt:null,revision:1,homeTask:true,origin:{id:'source',capturedAt:'2026-10-21',snapshot:'{"content":"ORIGINAL"}'}};
+ const memos=initMemos({quickRoot:quick,pageRoot:page,cloud:true,autoload:false,onChanged:items=>state=items,api:async(p,method)=>{if(method){patches++;throw Error('uncertain');}gets++;return {memos:[{...item,completedAt:patches?'now':null,revision:patches?2:1}]};}});
+ await memos.load();assert.equal(state.length,1);assert.match(text(page),/원본 정보/);memos.open('m');assert.equal(page.querySelectorAll('textarea')[0].value,item.content);
+ await memos.toggle('m');assert.equal(gets,2);assert.equal(patches,1);assert.equal(state[0].revision,2);assert.match(text(page),/결과/);memos.reset();assert.equal(state.length,0);assert.doesNotMatch(text(page),/ORIGINAL/);
+});
