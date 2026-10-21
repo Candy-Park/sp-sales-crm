@@ -30,3 +30,7 @@ test('shared memo publishes current state, preserves provenance and refetches un
  await memos.load();assert.equal(state.length,1);assert.match(text(page),/원본 정보/);memos.open('m');assert.equal(page.querySelectorAll('textarea')[0].value,item.content);
  await memos.toggle('m');assert.equal(gets,2);assert.equal(patches,1);assert.equal(state[0].revision,2);assert.match(text(page),/결과/);memos.reset();assert.equal(state.length,0);assert.doesNotMatch(text(page),/ORIGINAL/);
 });
+test('uncertain completion with failed refetch locks next toggle until successful manual refresh',async()=>{
+ globalThis.document={createElement:t=>new Element(t)};let fail=false,patches=0;const memo={id:'p',content:'SYNTHETIC',category:'work',createdAt:'2026-10-21',revision:1};const memos=initMemos({quickRoot:new Element(),pageRoot:new Element(),autoload:false,api:async(path,method)=>{if(method){patches++;fail=true;throw Error('lost response');}if(fail)throw Error('offline');return {memos:[memo]};}});
+ await memos.load();await assert.rejects(memos.toggle('p'),/결과 미확인/);await assert.rejects(memos.toggle('p'),/결과 미확인/);assert.equal(patches,1);fail=false;assert.equal(await memos.load(),true);
+});
