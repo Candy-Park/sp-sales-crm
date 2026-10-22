@@ -71,3 +71,9 @@ test('brief shows a failure as unknown instead of zero and opens saved work from
  assert.doesNotMatch(texts(checkRoot).join('|'),/담당자가 확인되지 않은/);
  brief.reset();assert.doesNotMatch(texts(priorityRoot).join('|'),/할 일 l/);
 });
+test('waiting card lists who and when to follow up, and hero counts match the priority list',async()=>{
+ const {waitingItems,homeCounts}=await import('../web/home-brief.mjs');
+ const groups={...empty,action:[row('a',[act('1','2026-10-20'),act('2',today)])],waiting:[row('w2',[act('x',null)]),row('w1',[act('y','2026-10-25',undefined,{waiting_target:'HQ'})])]};
+ assert.deepEqual(waitingItems(groups).map(i=>[i.id,i.who,i.due]),[['w1','HQ','2026-10-25'],['w2','','']]);
+ assert.deepEqual(homeCounts(groups,{today}),{first:2,overdue:1,dueToday:1,waiting:2});
+});

@@ -8,7 +8,7 @@ import {initMemoImport} from './memo-import.mjs';
 import {initMemoTaskAgenda} from './memo-task-agenda.mjs';
 import {initGlassTheme} from './glass-theme.mjs';
 import {renderTaskBoard} from './mail-task-board.mjs';
-import {initHomeBrief} from './home-brief.mjs';
+import {mountHomeBrief} from './home-brief.mjs';
 const el=id=>document.getElementById(id);
 const message=(id,text,error=false)=>{el(id).textContent=text;el(id).classList.toggle('error',error);};
 el('login-view').hidden=true;el('workspace').hidden=false;el('workspace').classList.add('task-preview');
@@ -34,12 +34,8 @@ const followRoot=document.createElement('section');followRoot.className='task-pa
 const agendaRoot=document.createElement('section');agendaRoot.className='task-panel';agendaRoot.id='work-agenda';
 const memoAgendaRoot=document.createElement('section');memoAgendaRoot.className='task-panel';memoAgendaRoot.id='memo-task-agenda';
 const reviewRoot=document.createElement('details');reviewRoot.className='task-panel';reviewRoot.id='mail-thread-review';const summary=document.createElement('summary');summary.textContent='메일 대조 상세 · 할 일 제안';reviewRoot.append(summary);
-// Home reading order: priorities, today's work, standalone tasks, quick memo, unknowns, connection, mail detail.
-const priorityRoot=document.createElement('section');priorityRoot.className='task-panel';priorityRoot.id='home-priorities';
-const checkRoot=document.createElement('section');checkRoot.className='task-panel';checkRoot.id='home-checks';
-el('dashboard-view').querySelector('.summary-strip').after(priorityRoot,agendaRoot,memoAgendaRoot,memoQuick,checkRoot,followRoot,reviewRoot);
-brief=initHomeBrief({priorityRoot,checkRoot,open:id=>work.open(id)});
-const lead=document.createElement('p');lead.className='home-lead';lead.textContent='기한 지난 일부터 순서대로 보여 줍니다. 메일 발송과 완료 처리는 직접 확인한 뒤 진행하세요.';el('dashboard-view').querySelector('h1').after(lead);
+// Morning-brief home: hero card, 01 priorities, 02 waiting, 03 unknowns, then folded detail.
+brief=mountHomeBrief({view:el('dashboard-view'),open:id=>work.open(id),onMain:()=>mainCheck(),agendaRoot,memoAgendaRoot,memoQuick,followRoot,reviewRoot});
 function activate(id){for(const nav of document.querySelectorAll('.side-nav .nav-button'))nav.classList.toggle('active',nav.id===id);}
 function viewChanged(name){current=name;memoPage.hidden=true;memoQuick.hidden=!['dashboard','outlook'].includes(name);activate(name==='outlook'?el('outlook-category-filter').value==='HQ 업무'?'nav-hq':'nav-customer':'nav-'+name);}
 async function dashboard(){if(!connection.isConnected())return;el('today-label').textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'long'}).format(new Date());message('dashboard-message','저장된 업무를 확인합니다.메일 관측 자료는 마지막 PC 동기화 기준입니다.');follow.start();agenda.start();}
@@ -62,8 +58,7 @@ for(const id of ['outlook-start','outlook-review-sync','outlook-workflow','outlo
 el('outlook-classification-section').hidden=true;el('outlook-classification-filter').parentElement.hidden=true;
 for(const option of [...el('outlook-filter').options])if(option.value!=='reviewed')option.remove();
 for(const p of outlookView.querySelectorAll('p'))if(p.textContent.startsWith('오늘 검토본은'))p.hidden=true;
-el('outlook-filter').value='reviewed';const mainAction=el('reload-button');mainAction.textContent='지금 메일 확인';mainAction.className='btn btn-primary home-main-action';
-mainAction.addEventListener('click',()=>{if(!connection.isConnected()){connection.show();return;}agenda.start();follow.checkNow();});
+el('outlook-filter').value='reviewed';function mainCheck(){if(!connection.isConnected()){connection.show();return;}agenda.start();follow.checkNow();}
 const mailList=document.createElement('details'),mailListTitle=document.createElement('summary');mailListTitle.textContent='근거 메일 목록 펼치기';mailList.append(mailListTitle,el('outlook-list'),el('outlook-prev'),el('outlook-next'));customerBoard.after(mailList);
 window.addEventListener('beforeunload',event=>{if(memos.hasDraft()){event.preventDefault();event.returnValue='';}});
 work.show('dashboard');message('dashboard-message','로그인 후 저장된 업무와 메모를 확인할 수 있습니다.');el('user-email').textContent='PC가 꺼져도 저장된 업무 사용 가능';
