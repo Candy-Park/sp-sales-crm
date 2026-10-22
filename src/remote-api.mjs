@@ -8,7 +8,7 @@ async function body(request,limit=65536){
  for(;;){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();throw Error('size');}chunks.push(value);}
  const data=new Uint8Array(size);let offset=0;for(const chunk of chunks){data.set(chunk,offset);offset+=chunk.byteLength;}return JSON.parse(new TextDecoder().decode(data));
 }
-function memo(row){return {id:row.id,content:row.content,category:row.category,dueDate:row.due_date,completedAt:row.completed_at,revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at};}
+function memo(row){return {id:row.id,content:row.content,category:row.category,dueDate:row.due_date,completedAt:row.completed_at,revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at,origin:row.origin||null,homeTask:row.home_task===true};}
 export async function handleRemoteApi(request,env,native,fetcher=fetch){
  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/crm\//,'/api/');
  const invoke=native||((req,e)=>handleApi(req,e,fetcher));
