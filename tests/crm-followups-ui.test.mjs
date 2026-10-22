@@ -63,3 +63,11 @@ test('reconciliation failure keeps manual retry available and logout during reco
  const retryRoot=new Element(),failed=initFollowups({root:retryRoot,isConnected:()=>true,api:async()=>({ready:true,last_checked_at:'2026-10-11T00:00:00Z'}),open(){},onChecked:async()=>{throw Error('Synthetic uncertain save');},schedule:()=>++timers,cancel(){}});
  failed.start();await flush();assert.equal(retryRoot.children[2].disabled,false);assert.match(retryRoot.children[1].textContent,/uncertain save/);assert.equal(timers,0);
 });
+test('home can rename the panel, hide its own button, run a manual check and receive each status',async()=>{
+ globalThis.document={createElement:()=>new Element()};const root=new Element(),calls=[],statuses=[];
+ const panel=initFollowups({root,remote:true,title:'연결 상태',showButton:false,isConnected:()=>true,api:async(...args)=>{calls.push(args);if(args[1]==='POST')throw Error('요청 실패');return {remote:true,agent_online:false,ready:false,last_synced_at:null};},open(){},onStatus:s=>statuses.push(s),schedule:()=>1,cancel(){}});
+ assert.equal(root.children[0].textContent,'연결 상태');assert.equal(root.children[2].hidden,true);
+ panel.start();await flush();assert.equal(statuses[0].agent_online,false);
+ panel.checkNow();await flush();assert.equal(calls.at(-1)[1],'POST');assert.deepEqual(statuses.at(-1),{error:'요청 실패'});
+ panel.stop();
+});

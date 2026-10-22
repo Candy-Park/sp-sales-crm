@@ -13,17 +13,17 @@ export function followupWindow(now){
  const local=new Date(+now+SEOUL),hour=local.getUTCHours();
  return ![0,6].includes(local.getUTCDay())&&hour>=10&&(hour<18||(hour===18&&local.getUTCMinutes()===0));
 }
-export function initFollowups({root,api,isConnected,open,label=()=>'',schedule=setTimeout,cancel=clearTimeout,now=()=>new Date(),onChecked=()=>{},remote=false}){
+export function initFollowups({root,api,isConnected,open,label=()=>'',schedule=setTimeout,cancel=clearTimeout,now=()=>new Date(),onChecked=()=>{},remote=false,title='후속 메일 확인',showButton=true,onStatus=()=>{}}){
  let epoch=0,timer=null,busy=false,lastChecked=null;
  const make=(tag,text)=>{const node=document.createElement(tag);node.textContent=text;return node;};
- const heading=make('h2','후속 메일 확인'),status=make('p','CRM 계정을 연결하면 받은·보낸 메일을 함께 확인합니다.');
+ const heading=make('h2',title),status=make('p','CRM 계정을 연결하면 받은·보낸 메일을 함께 확인합니다.');
  const hint=make('p','한국 시간 평일 10:00~18:00 매 정각 자동 확인 · 수동 확인은 언제든 가능 · CRM 연결·탭 유지 및 Outlook 실행 필요');
  if(remote)hint.textContent='한국 시간 평일 10:00~18:00 매 정각 PC에서 자동 확인 · 수동 확인 요청 가능 · 새 수집에는 PC Agent와 Outlook 실행 필요';
- const button=make('button','지금 메일 확인');button.type='button';button.className='btn btn-outline-primary btn-sm';button.disabled=true;
+ const button=make('button','지금 메일 확인');button.type='button';button.className='btn btn-outline-primary btn-sm';button.disabled=true;button.hidden=!showButton;
  const list=document.createElement('ul');root.append(heading,status,button,hint,list);
  const stopTimer=()=>{if(timer!==null)cancel(timer);timer=null;};
  function render(data){
-  list.replaceChildren();
+  onStatus(data);list.replaceChildren();
   if(data.error){status.textContent=data.error+' 자동 확인을 중지했습니다.';status.classList.add('error');return;}
   status.classList.remove('error');
   if(data.remote){
@@ -55,9 +55,9 @@ export function initFollowups({root,api,isConnected,open,label=()=>'',schedule=s
    if(!data.error&&!data.running&&!data.queued&&data.skipped!=='outlook_not_running'&&data.last_checked_at){if(lastChecked!==data.last_checked_at)await onChecked();lastChecked=data.last_checked_at;}
    if(active!==epoch||!isConnected())return;
    if(!data.error){if(data.running||data.remote&&data.queued&&data.agent_online)timer=schedule(()=>void check(false),data.remote?30000:4000);else arm();}
-  }catch(error){if(active===epoch&&isConnected()){status.textContent=error.message+' 자동 확인을 중지했습니다.';status.classList.add('error');}}
+  }catch(error){if(active===epoch&&isConnected()){onStatus({error:error.message});status.textContent=error.message+' 자동 확인을 중지했습니다.';status.classList.add('error');}}
   finally{if(active===epoch){busy=false;button.disabled=!isConnected();}}
  }
  button.addEventListener('click',()=>void check(true,true));
- return {start(){epoch++;busy=false;stopTimer();button.disabled=false;void check(false);},stop(){epoch++;busy=false;stopTimer();button.disabled=true;list.replaceChildren();status.classList.remove('error');status.textContent='CRM 계정을 연결하면 받은·보낸 메일을 함께 확인합니다.';}};
+ return {checkNow(){void check(true,true);},start(){epoch++;busy=false;stopTimer();button.disabled=false;void check(false);},stop(){epoch++;busy=false;stopTimer();button.disabled=true;list.replaceChildren();status.classList.remove('error');status.textContent='CRM 계정을 연결하면 받은·보낸 메일을 함께 확인합니다.';}};
 }

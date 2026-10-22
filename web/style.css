@@ -172,3 +172,28 @@ button, input, select, textarea { font-family: inherit; }
     overscroll-behavior: contain;
   }
 }
+/* Home brief: fixed reading order, numbered sections, fact/suggestion badges */
+#dashboard-view{counter-reset:home-section}
+#dashboard-view>.task-panel{margin-top:28px}
+#dashboard-view>.task-panel>h2::before{counter-increment:home-section;content:counter(home-section,decimal-leading-zero);display:inline-block;min-width:30px;margin-right:8px;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--brand-green-ink)}
+.task-preview #dashboard-view .dashboard-title{align-items:flex-end;gap:16px;flex-wrap:wrap}
+.task-preview #dashboard-view .dashboard-title h1{font-size:34px;margin-bottom:0}
+.home-lead{margin:8px 0 0;font-size:15px;color:var(--muted);line-height:1.7}
+.btn.home-main-action{height:auto;min-height:48px;margin:0;padding:10px 24px;border-radius:10px;font-size:15px;font-weight:600}
+.brief-badge{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:6px;font-size:12px;font-weight:600;line-height:1.6;vertical-align:1px}
+.brief-badge--fact{background:#eaf3de;color:#27500a}
+.brief-badge--suggest{background:#faeeda;color:#633806}
+.priority-list{list-style:none;margin:0;padding:0;counter-reset:priority}
+.priority-item{display:flex;align-items:flex-start;gap:14px;padding:16px 0;border-top:1px solid var(--line)}
+.priority-item:first-child{border-top:0;padding-top:4px}
+.priority-item::before{counter-increment:priority;content:counter(priority);flex:0 0 28px;height:28px;border-radius:50%;background:var(--brand-green-soft);color:var(--brand-green-ink);font-size:13px;font-weight:600;display:grid;place-items:center}
+.priority-body{flex:1;min-width:0}
+.priority-body strong{display:block;font-size:17px;line-height:1.6;color:var(--brand-navy)}
+.task-panel .priority-reason{margin:4px 0 2px;font-size:14px;color:var(--ink);line-height:1.6}
+.priority-item>.btn{flex-shrink:0;border-radius:8px}
+.priority-list .empty,.check-list .empty{color:var(--muted);font-size:14px;padding:6px 0}
+.priority-list li.empty::before{content:none}
+.check-list{margin:0;padding-left:20px;font-size:14px;line-height:1.8}
+.check-list li+li{margin-top:4px}
+.check-list li.empty{list-style:none;margin-left:-20px}
+@media(max-width:760px){.task-preview #dashboard-view .dashboard-title h1{font-size:28px}.priority-item{flex-wrap:wrap}.priority-item>.btn{margin-left:42px}.btn.home-main-action{width:100%}}

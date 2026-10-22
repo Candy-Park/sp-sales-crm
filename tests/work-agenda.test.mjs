@@ -39,3 +39,18 @@ test('late agenda result after logout cannot restore protected mail or counts',a
  const agenda=initWorkAgenda({root,isConnected:()=>true,api:()=>new Promise(r=>resolves.push(r)),open(){},onCounts(){counts++;}});
  agenda.start();agenda.stop();resolves[0]({threads:[t('private','action')]});resolves[1]({actions:[],inquiries:[]});await flush();assert.equal(root.children[3].children.length,0);assert.equal(counts,0);
 });
+test('home reading order is my todo, new requests, judgment, waiting, then closed history',async()=>{
+ globalThis.document={createElement:()=>new Node()};const root=new Node();
+ const candidates=[{source_key:'k',subject:'새 요청',category:'고객 업무',customer:'고객',next_action:'답변',evidence:[],excerpt:'',automatic_registration:true}];
+ const agenda=initWorkAgenda({root,isConnected:()=>true,api:async path=>path.includes('analysis')?{threads:[t('a','action',[{id:'1',status:'open'}])],candidates}:{actions:[],inquiries:[]},open(){}});
+ agenda.start();await flush();
+ const titles=root.children[3].children.map(s=>s.children[0].textContent);
+ assert.deepEqual(titles,['내가 할 일 · 1','새 담당 요청 · 1','판단 필요 · 0','상대 답변·처리 대기 · 0','회신 완료·종료 이력 · 0']);
+});
+test('agenda shares loaded groups with the home brief and reports failures instead of zero',async()=>{
+ globalThis.document={createElement:()=>new Node()};const root=new Node(),seen=[],errors=[];let fail=false;
+ const agenda=initWorkAgenda({root,isConnected:()=>true,api:async path=>{if(fail)throw Error('조회 실패');return path.includes('analysis')?{threads:[t('a','action',[{id:'1',status:'open'}])]}:{actions:[],inquiries:[],truncated:true};},open(){},onData:d=>seen.push(d),onError:m=>errors.push(m)});
+ agenda.start();await flush();
+ assert.equal(seen.length,1);assert.equal(seen[0].groups.action.length,1);assert.equal(seen[0].dashboard.truncated,true);assert.ok(Array.isArray(seen[0].analysis.threads));
+ fail=true;agenda.start();await flush();assert.deepEqual(errors,['조회 실패']);
+});

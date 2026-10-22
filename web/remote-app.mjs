@@ -8,12 +8,13 @@ import {initMemoImport} from './memo-import.mjs';
 import {initMemoTaskAgenda} from './memo-task-agenda.mjs';
 import {initGlassTheme} from './glass-theme.mjs';
 import {renderTaskBoard} from './mail-task-board.mjs';
+import {initHomeBrief} from './home-brief.mjs';
 const el=id=>document.getElementById(id);
 const message=(id,text,error=false)=>{el(id).textContent=text;el(id).classList.toggle('error',error);};
 el('login-view').hidden=true;el('workspace').hidden=false;el('workspace').classList.add('task-preview');
 initGlassTheme({root:document.body,controls:document.querySelector('.account')});
-let work,agenda,review,follow,memos,memoImport,memoAgenda,connectedUser=null,current='dashboard',epoch=0;
-const connection=initCRMConnection({onConnected(user){epoch++;memoImport?.reset();memos?.reset();connectedUser={...user,projectRef:'glscckjmlwvxilzneqdf'};el('user-email').textContent=user.email;follow.start();review.start();void memos.load();work.show('dashboard');void dashboard();},onDisconnected(){epoch++;connectedUser=null;memoImport?.reset();follow?.stop();review?.stop();agenda?.stop();memos?.reset();memoAgenda?.reset();customerBoard.replaceChildren();taskMails.clear();work?.reset();memoPage.hidden=true;el('user-email').textContent='계정을 연결해 업무를 확인하세요.';for(const id of ['action-list','inquiry-list','outlook-list'])el(id).replaceChildren();for(const id of ['today-count','overdue-count','waiting-count'])el(id).textContent='—';message('dashboard-message','로그인 후 저장된 업무와 메모를 확인할 수 있습니다.');}});
+let work,agenda,review,follow,memos,memoImport,memoAgenda,brief,connectedUser=null,current='dashboard',epoch=0;
+const connection=initCRMConnection({onConnected(user){epoch++;memoImport?.reset();memos?.reset();connectedUser={...user,projectRef:'glscckjmlwvxilzneqdf'};el('user-email').textContent=user.email;follow.start();review.start();void memos.load();work.show('dashboard');void dashboard();},onDisconnected(){epoch++;connectedUser=null;brief?.reset();memoImport?.reset();follow?.stop();review?.stop();agenda?.stop();memos?.reset();memoAgenda?.reset();customerBoard.replaceChildren();taskMails.clear();work?.reset();memoPage.hidden=true;el('user-email').textContent='계정을 연결해 업무를 확인하세요.';for(const id of ['action-list','inquiry-list','outlook-list'])el(id).replaceChildren();for(const id of ['today-count','overdue-count','waiting-count'])el(id).textContent='—';message('dashboard-message','로그인 후 저장된 업무와 메모를 확인할 수 있습니다.');}});
 const api=connection.api;
 const customerBoard=document.createElement('section');customerBoard.id='mail-task-board';el('outlook-view').querySelector('h1').nextElementSibling.after(customerBoard);
 let taskMails=new Map();
@@ -29,20 +30,25 @@ const outlookApi=async(path,method,body)=>{
 };
 const memoQuick=document.createElement('details');memoQuick.className='task-panel memo-quick';const mqTitle=document.createElement('summary');mqTitle.textContent='빠른 메모';const mqForm=document.createElement('div');memoQuick.append(mqTitle,mqForm);
 const memoPage=document.createElement('section');memoPage.id='local-memo-page';memoPage.hidden=true;el('outlook-view').after(memoPage);
-el('dashboard-view').querySelector('.summary-strip').after(memoQuick);
-const followRoot=document.createElement('section');followRoot.className='task-panel';followRoot.id='crm-followups';el('dashboard-view').querySelector('.summary-strip').before(followRoot);
-const agendaRoot=document.createElement('section');agendaRoot.className='task-panel';agendaRoot.id='work-agenda';followRoot.after(agendaRoot);
-const memoAgendaRoot=document.createElement('section');memoAgendaRoot.className='task-panel';memoAgendaRoot.id='memo-task-agenda';agendaRoot.after(memoAgendaRoot);
-const reviewRoot=document.createElement('details');reviewRoot.className='task-panel';reviewRoot.id='mail-thread-review';const summary=document.createElement('summary');summary.textContent='메일 대조 상세 · 할 일 제안';reviewRoot.append(summary);agendaRoot.after(reviewRoot);
+const followRoot=document.createElement('section');followRoot.className='task-panel';followRoot.id='crm-followups';
+const agendaRoot=document.createElement('section');agendaRoot.className='task-panel';agendaRoot.id='work-agenda';
+const memoAgendaRoot=document.createElement('section');memoAgendaRoot.className='task-panel';memoAgendaRoot.id='memo-task-agenda';
+const reviewRoot=document.createElement('details');reviewRoot.className='task-panel';reviewRoot.id='mail-thread-review';const summary=document.createElement('summary');summary.textContent='메일 대조 상세 · 할 일 제안';reviewRoot.append(summary);
+// Home reading order: priorities, today's work, standalone tasks, quick memo, unknowns, connection, mail detail.
+const priorityRoot=document.createElement('section');priorityRoot.className='task-panel';priorityRoot.id='home-priorities';
+const checkRoot=document.createElement('section');checkRoot.className='task-panel';checkRoot.id='home-checks';
+el('dashboard-view').querySelector('.summary-strip').after(priorityRoot,agendaRoot,memoAgendaRoot,memoQuick,checkRoot,followRoot,reviewRoot);
+brief=initHomeBrief({priorityRoot,checkRoot,open:id=>work.open(id)});
+const lead=document.createElement('p');lead.className='home-lead';lead.textContent='기한 지난 일부터 순서대로 보여 줍니다. 메일 발송과 완료 처리는 직접 확인한 뒤 진행하세요.';el('dashboard-view').querySelector('h1').after(lead);
 function activate(id){for(const nav of document.querySelectorAll('.side-nav .nav-button'))nav.classList.toggle('active',nav.id===id);}
 function viewChanged(name){current=name;memoPage.hidden=true;memoQuick.hidden=!['dashboard','outlook'].includes(name);activate(name==='outlook'?el('outlook-category-filter').value==='HQ 업무'?'nav-hq':'nav-customer':'nav-'+name);}
 async function dashboard(){if(!connection.isConnected())return;el('today-label').textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'long'}).format(new Date());message('dashboard-message','저장된 업무를 확인합니다.메일 관측 자료는 마지막 PC 동기화 기준입니다.');follow.start();agenda.start();}
 // Only verified cloud API calls; no anonymous PC preview or local SQLite endpoints.
 work=initWorkspace(api,dashboard,message,{onShow:viewChanged,outlook:{api:outlookApi,onList(mails,view){if(view!=='reviewed')return;taskMails=new Map(mails.map(m=>[m.id,m]));renderTaskBoard(customerBoard,mails,id=>{const mail=taskMails.get(id);if(mail?.state==='linked'&&mail.inquiry_id)void work.open(mail.inquiry_id);else void work.reviewMail(id);});}}});
 for(const id of ['action-list','inquiry-list'])el(id).closest('section').hidden=true;
-follow=initFollowups({root:followRoot,api,remote:true,isConnected:connection.isConnected,open:id=>work.open(id),onChecked:async()=>{review.start();agenda.start();}});
+follow=initFollowups({root:followRoot,api,remote:true,title:'연결 상태',showButton:false,onStatus:status=>brief.setFollow(status),isConnected:connection.isConnected,open:id=>work.open(id),onChecked:async()=>{review.start();agenda.start();}});
 review=initThreadReview({root:reviewRoot,api,isConnected:connection.isConnected,open:id=>work.open(id),prepare:(id,text)=>work.prepareAction(id,text)});
-agenda=initWorkAgenda({root:agendaRoot,api,isConnected:connection.isConnected,open:id=>work.open(id),onCounts:groups=>{const today=new Date(Date.now()+9*3600000).toISOString().slice(0,10),actions=Object.values(groups).flat().flatMap(r=>r.actions);el('today-count').textContent=actions.filter(a=>a.due_date===today).length;el('overdue-count').textContent=actions.filter(a=>a.due_date&&a.due_date<today).length;el('waiting-count').textContent=groups.waiting.length;}});
+agenda=initWorkAgenda({root:agendaRoot,api,isConnected:connection.isConnected,open:id=>work.open(id),onData:data=>brief.update(data),onError:text=>brief.fail(text),onCounts:groups=>{const today=new Date(Date.now()+9*3600000).toISOString().slice(0,10),actions=Object.values(groups).flat().flatMap(r=>r.actions);el('today-count').textContent=actions.filter(a=>a.due_date===today).length;el('overdue-count').textContent=actions.filter(a=>a.due_date&&a.due_date<today).length;el('waiting-count').textContent=groups.waiting.length;}});
 memoAgenda=initMemoTaskAgenda({root:memoAgendaRoot,onOpen:id=>{showMemos(false);memos.open(id);},onToggle:id=>memos.toggle(id)});
 memos=initMemos({quickRoot:mqForm,pageRoot:memoPage,api,autoload:false,cloud:true,onChanged:items=>memoAgenda.setItems(items)});
 memoImport=initMemoImport({root:memoPage,api,getUser:()=>connectedUser,onImported:()=>memos.load()});
@@ -56,7 +62,8 @@ for(const id of ['outlook-start','outlook-review-sync','outlook-workflow','outlo
 el('outlook-classification-section').hidden=true;el('outlook-classification-filter').parentElement.hidden=true;
 for(const option of [...el('outlook-filter').options])if(option.value!=='reviewed')option.remove();
 for(const p of outlookView.querySelectorAll('p'))if(p.textContent.startsWith('오늘 검토본은'))p.hidden=true;
-el('outlook-filter').value='reviewed';el('reload-button').addEventListener('click',dashboard);
+el('outlook-filter').value='reviewed';const mainAction=el('reload-button');mainAction.textContent='지금 메일 확인';mainAction.className='btn btn-primary home-main-action';
+mainAction.addEventListener('click',()=>{if(!connection.isConnected()){connection.show();return;}agenda.start();follow.checkNow();});
 const mailList=document.createElement('details'),mailListTitle=document.createElement('summary');mailListTitle.textContent='근거 메일 목록 펼치기';mailList.append(mailListTitle,el('outlook-list'),el('outlook-prev'),el('outlook-next'));customerBoard.after(mailList);
 window.addEventListener('beforeunload',event=>{if(memos.hasDraft()){event.preventDefault();event.returnValue='';}});
 work.show('dashboard');message('dashboard-message','로그인 후 저장된 업무와 메모를 확인할 수 있습니다.');el('user-email').textContent='PC가 꺼져도 저장된 업무 사용 가능';
