@@ -50,6 +50,24 @@ DB·SQL·API·Worker·인증·Outlook 수집 코드는 바꾸지 않았다. 로�
 - 코드: `web/home-brief.mjs`에 요약 카드·대기 카드·`mountHomeBrief` 배치 함수 추가, `web/remote-app.mjs`·합성 화면이 같은 배치 함수를 사용, `web/style.css`의 1차 홈 스타일 교체
 - 검증: `npm test` 203/203, `npm run build:remote` 성공, 사용자 Chrome 합성 화면에서 요약 카드·카드 3개·제목 정렬·가로 넘침 없음 확인. 실제 로그인 화면과 배포는 여전히 미실행
 
+## 병합·배포 (2026-10-23)
+
+- 사용자 승인 후 [PR #2](https://github.com/Candy-Park/sp-sales-crm/pull/2)를 main에 일반 병합: 병합 커밋 `e0d56ab`. 작업 브랜치는 삭제하지 않음.
+- main에서 `npm test` 203/203, `npm run build:remote` 성공 후 `npm run deploy:remote`로 배포.
+- 배포 전 운영 버전: `ca0cb277-fa9c-4414-8d68-18a3ad47380d`(2026-10-21). 새 운영 버전: `cde742b6-e01e-4115-85a8-3e52793398fc`. 변경 정적 파일은 `app.js`, `style.css` 2개.
+- 배포 후 확인: 공개 `app.js`·`style.css` SHA256이 로컬 빌드와 일치, 홈 200, 무인증 `/api/memos`·`/api/dashboard` 401, CSP·nosniff·no-referrer 헤더 유지, 로그인 화면 뒤에 새 요약 카드 표시.
+- 미확인: 로그인 후 실제 업무 데이터 화면(사용자 로그인 필요).
+
+### 배포 중 문제와 처리
+
+Wrangler 로그인이 만료되어 다시 로그인했다. Bash(비대화형)에서는 OAuth 로그인이 불가해 터미널 탭에서 진행했다. 처음 자동 요청은 Wrangler 기본값으로 권한을 30개 가까이 요청해 취소하고, 계정 조회·사용자 조회·Workers 배포만 요청하는 최소 권한으로 다시 요청했다.
+
+브라우저에 남아 있던 다른 Cloudflare 계정(다른 Gmail 계정, 이메일 호스팅용 계정)으로 승인이 두 번 처리됐다. 두 계정 모두 `sp-sales-crm` Worker가 없음을 `deployments list`로 확인하고 배포 전에 중단해 `wrangler logout`으로 로그인을 지웠다. 사용자가 Chrome의 Cloudflare를 배포 계정으로 바꾼 뒤 승인 화면의 계정 이름을 확인하고 승인했다. 이후 배포 전에 계정과 Worker 존재를 먼저 확인하는 순서를 지킨다.
+
+### 배포 복원 방법
+
+화면 문제가 있으면 이전 버전으로 되돌린다: `node node_modules/wrangler/bin/wrangler.js rollback ca0cb277-fa9c-4414-8d68-18a3ad47380d` (배포 계정 로그인 필요). 코드까지 되돌리려면 main에서 `git revert -m 1 e0d56ab` 후 다시 배포한다. DB 변경은 없다.
+
 ## 커밋·원격
 
 시작 기준은 `claude/session-record-2026-10-22`(db8a263)에서 만든 `claude/home-brief` 브랜치다. 이 브랜치에 커밋하고 push한다. main 병합과 Cloudflare 배포는 사용자 확인 후 진행한다.
