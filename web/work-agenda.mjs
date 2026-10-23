@@ -1,3 +1,4 @@
+import {withBadge} from './home-brief.mjs';
 export function agendaGroups(threads,dashboard){
  const rows=new Map(),groups={action:[],waiting:[],decision:[],done:[]};
  for(const t of threads)rows.set(t.inquiry_id,{...t.current,id:t.inquiry_id,thread:t,actions:t.current.actions.filter(a=>a.status==='open')});
@@ -17,7 +18,7 @@ export function agendaGroups(threads,dashboard){
  for(const list of Object.values(groups))list.sort((a,b)=>(a.actions.map(x=>x.due_date||'9999').sort()[0]||'9999').localeCompare(b.actions.map(x=>x.due_date||'9999').sort()[0]||'9999'));
  return groups;
 }
-export function initWorkAgenda({root,api,isConnected,open,onCounts=()=>{}}){
+export function initWorkAgenda({root,api,isConnected,open,onCounts=()=>{},onData=()=>{},onError=()=>{}}){
  let epoch=0;const make=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n;};
  const heading=make('h2','오늘의 업무'),status=make('p','CRM 연결 후 저장된 업무와 메일 변화를 함께 표시합니다.'),reload=make('button','업무 다시 확인'),list=make('div','');reload.type='button';root.append(heading,status,reload,list);
  async function load(){
@@ -27,10 +28,10 @@ export function initWorkAgenda({root,api,isConnected,open,onCounts=()=>{}}){
    if(active!==epoch||!isConnected())return;
    const groups=agendaGroups(analysis.threads,dashboard);list.replaceChildren();onCounts(groups);
    const pending=(analysis.candidates||[]).filter(c=>!c.inquiry_id);
-   if(pending.length){
-    const section=make('section','');section.className='task-section';section.append(make('h3',`새 담당 요청 · ${pending.length}`));
-    for(const row of pending){
-     const card=make('article','');card.className='task-card';card.append(make('h3',row.subject),make('p',`${row.category} · ${row.customer}`),make('p',row.next_action));
+   const requests=make('section','');requests.className='task-section';requests.append(make('h3',`새 담당 요청 · ${pending.length}`));
+   {
+    const section=requests;    for(const row of pending){
+     const card=make('article','');card.className='task-card';card.append(make('h3',row.subject),make('p',`${row.category} · ${row.customer}`),withBadge(make('p',row.next_action),'suggest'));
      card.append(make('p',row.automatic_registration?'다음 메일 확인에서 문의·3일 기한 할 일 자동 등록':'연결할 고객/업무 선택 필요'));
      const proof=make('details','');proof.append(make('summary','분류 근거·요청 펼치기'),make('p',row.evidence.join(' · ')),make('pre',row.excerpt));card.append(proof);
      if(!row.automatic_registration){
@@ -48,15 +49,16 @@ export function initWorkAgenda({root,api,isConnected,open,onCounts=()=>{}}){
       });card.append(choose,select,save);
      }
      section.append(card);
-    }list.append(section);
+    }
+    if(!pending.length)section.append(make('p','새로 들어온 담당 요청이 없습니다.'));
    }
-   for(const [key,label] of [['action','내가 할 일'],['waiting','상대 답변·처리 대기'],['decision','판단 필요'],['done','회신 완료·종료 이력']]){
+   for(const [key,label] of [['action','내가 할 일'],['decision','판단 필요'],['waiting','상대 답변·처리 대기'],['done','회신 완료·종료 이력']]){
     const section=make(key==='done'?'details':'section','');section.className='task-section';section.append(make(key==='done'?'summary':'h3',`${label} · ${groups[key].length}`));
     for(const row of groups[key]){
      const card=make('article','');card.className='task-card';card.append(make('h3',row.review?.task_title||row.title));
      card.append(make('p','담당: '+(row.review?.task_owner||row.actions.find(a=>a.waiting_target)?.waiting_target||'담당자 확인 필요')));
-     if(row.thread?.observation)card.append(make('strong','새 메일 기준 · '+(row.status==='closed'?'종료 후 추가 요청 검토 · ':'')+row.thread.observation.next_action));
-     for(const a of row.actions)card.append(make('p',`${a.description||'내용 확인 필요'} · ${a.due_date?'기한 '+a.due_date:'확인일 미지정'}`));
+     if(row.thread?.observation)card.append(withBadge(make('strong','새 메일 기준 · '+(row.status==='closed'?'종료 후 추가 요청 검토 · ':'')+row.thread.observation.next_action),'suggest'));
+     for(const a of row.actions)card.append(withBadge(make('p',`${a.description||'내용 확인 필요'} · ${a.due_date?'기한 '+a.due_date:'확인일 미지정'}`),'fact'));
      if(!row.actions.length&&row.next_action)card.append(make('p',row.next_action));
      if(row.thread){
       const t=row.thread,last=t.timeline.at(-1);card.append(make('p',`받은 ${t.received} / 보낸 ${t.sent} · ${t.confirmed_review?'확인한 업무 유지':'메일 변화 검토 필요'}`));
@@ -67,9 +69,11 @@ export function initWorkAgenda({root,api,isConnected,open,onCounts=()=>{}}){
      const button=make('button',row.status==='closed'?'종료 이력 · 새 메일 확인':'업무 열기 · 수정/기한 연장');button.type='button';button.addEventListener('click',()=>open(row.id));card.append(button);section.append(card);
     }
     if(!groups[key].length)section.append(make('p','해당 업무가 없습니다.'));list.append(section);
+    if(key==='action')list.append(requests);
    }
+   onData({groups,dashboard,analysis});
    status.textContent=dashboard.truncated?'저장 업무는 최근 100건 범위입니다. 문의 조회에서 전체를 확인하세요.':'업무별 한 번만 표시합니다. 메일 수신·발신은 관측 사실이며 완료를 자동 확정하지 않습니다.';
-  }catch(error){if(active===epoch){status.textContent=error.message;list.replaceChildren();}}
+  }catch(error){if(active===epoch){status.textContent=error.message;list.replaceChildren();onError(error.message);}}
   finally{if(active===epoch)reload.disabled=!isConnected();}
  }
  reload.addEventListener('click',()=>void load());

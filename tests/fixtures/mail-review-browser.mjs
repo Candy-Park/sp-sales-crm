@@ -3,6 +3,7 @@ import {initThreadReview} from '../../web/mail-thread-review.mjs';
 import {initFollowups} from '../../web/crm-followups.mjs';
 import {initWorkAgenda} from '../../web/work-agenda.mjs';
 import {initGlassTheme} from '../../web/glass-theme.mjs';
+import {mountHomeBrief} from '../../web/home-brief.mjs';
 import {reconcileRequests,reconcileEvents} from '../../src/crm-mail-import.mjs';
 const el=id=>document.getElementById(id),iid='00000000-0000-4000-8000-000000000001';
 document.getElementById('workspace').classList.add('task-preview');
@@ -49,13 +50,15 @@ const work=initWorkspace(api,()=>{},message);
 const root=document.createElement('section');root.className='task-panel';el('dashboard-view').prepend(root);
 const followRoot=document.createElement('section');followRoot.className='task-panel';root.after(followRoot);
 const review=initThreadReview({root,api,isConnected:()=>connected,open:id=>work.open(id),prepare:(id,text)=>work.prepareAction(id,text)});
-const follow=initFollowups({root:followRoot,api,isConnected:()=>connected,open:id=>work.open(id),onChecked:async()=>{await api('/api/followups','POST',{operation:'reconcile'});agenda.start();}});
+const follow=initFollowups({root:followRoot,api,title:'연결 상태',showButton:false,onStatus:s=>brief.setFollow(s),isConnected:()=>connected,open:id=>work.open(id),onChecked:async()=>{await api('/api/followups','POST',{operation:'reconcile'});agenda.start();}});
 const agendaRoot=document.createElement('section');agendaRoot.className='task-panel';root.before(agendaRoot);
-const agenda=initWorkAgenda({root:agendaRoot,api,isConnected:()=>connected,open:id=>work.open(id)});agenda.start();
+const brief=mountHomeBrief({view:el('dashboard-view'),open:id=>work.open(id),onMain:()=>{agenda.start();follow.checkNow();},agendaRoot,followRoot,reviewRoot:root});
+for(const id of ['action-list','inquiry-list'])el(id).closest('section').hidden=true;
+const agenda=initWorkAgenda({root:agendaRoot,api,isConnected:()=>connected,open:id=>work.open(id),onData:d=>brief.update(d),onError:m=>brief.fail(m)});agenda.start();
 for(const [label,handler] of [
  ['새 요청 도착 시험',()=>{arrival=true;agenda.start();}],
  ['고객 발신 시험',()=>{outgoing=true;agenda.start();}],
- ['모의 로그아웃',()=>{connected=false;review.stop();follow.stop();agenda.stop();work.reset();}],
+ ['모의 로그아웃',()=>{connected=false;review.stop();follow.stop();agenda.stop();brief.reset();work.reset();}],
  ['모의 연결',()=>{connected=true;fail=false;review.start();follow.start();agenda.start();}],
  ['조회 오류 시험',()=>{fail=true;review.start();}],
  ['오류 해제',()=>{fail=false;review.start();}]
