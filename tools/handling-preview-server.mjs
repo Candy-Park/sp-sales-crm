@@ -24,7 +24,7 @@ await mkdir(memoDirectory,{recursive:true});
 const memos=openMemoStore(memoDirectory+'memos.sqlite');
 const remoteOrigin=process.env.CRM_REMOTE_ORIGIN||'';
 config.remoteOrigin=remoteOrigin;
-if(remoteOrigin&&!/^https:\/\/sp-sales-crm\.[a-z0-9-]+\.workers\.dev$/.test(remoteOrigin))throw Error('Invalid approved remote CRM origin');
+if(remoteOrigin&&!/^https:\/\/(?:crm|sp-sales-crm)\.[a-z0-9-]+\.workers\.dev$/.test(remoteOrigin))throw Error('Invalid approved remote CRM origin');
 const agent=createRemoteAgent({env:config,origin:remoteOrigin});
 const connectedApi=async(request,env)=>{
  const path=new URL(request.url).pathname;

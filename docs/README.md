@@ -44,7 +44,7 @@
 
 ## 현재 PC의 CRM 실행
 
-외부 확장: [승인 설계](remote-access-design.md), [실행 계획](remote-access-plan.md), [구현·배포·검수 기록](operations/2026-10-13-remote-access.md). 실제 주소는 https://sp-sales-crm.piaoenya.workers.dev 이며 저장 업무·메모는 PC와 분리해 사용한다. 새 메일 수집에는 PC 연결과 Outlook 실행이 필요하다. 기능 구현과 남은 운영 검수는 작업 기록에서 구분한다. 현재 Windows가 4327을 예약한 상태의 PC 연결 검수에는 임시 14327 인스턴스를 사용하며 기본 실행 경로/주소 설정은 보존한다.
+외부 확장: [승인 설계](remote-access-design.md), [실행 계획](remote-access-plan.md), [구현·배포·검수 기록](operations/2026-10-13-remote-access.md). 실제 주소는 https://crm.piaoenya.workers.dev 이며(2026-10-23 짧은 주소로 변경, 이전 https://sp-sales-crm.piaoenya.workers.dev) 저장 업무·메모는 PC와 분리해 사용한다. 새 메일 수집에는 PC 연결과 Outlook 실행이 필요하다. 기능 구현과 남은 운영 검수는 작업 기록에서 구분한다. 현재 Windows가 4327을 예약한 상태의 PC 연결 검수에는 임시 14327 인스턴스를 사용하며 기본 실행 경로/주소 설정은 보존한다.
 
 PC 수집 연결을 다시 실행할 때는 프로젝트의 [start-crm-sync.cmd](../start-crm-sync.cmd)를 사용한다. 실행된 로컬 Chrome 탭에서 기존 업무 계정으로 연결하고 Outlook을 실행한다. 새 메모는 연결 후 클라우드에 저장하며 기존 SQLite 파일은 보존한다. 외부 주소에서는 수집 PC와 연결되지 않아도 저장된 업무를 사용할 수 있다.
 

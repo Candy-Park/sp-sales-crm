@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-set CRM_REMOTE_ORIGIN=https://sp-sales-crm.piaoenya.workers.dev
+set CRM_REMOTE_ORIGIN=https://crm.piaoenya.workers.dev
 set CRM_LOCAL_PORT=14327
 node tools/start-crm.mjs
 if errorlevel 1 (

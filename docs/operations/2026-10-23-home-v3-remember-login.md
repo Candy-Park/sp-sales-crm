@@ -40,3 +40,11 @@ DB·SQL·API·Worker 인증 검사는 바꾸지 않았다.
 - 배포 후 공개 `app.js`·`style.css` 해시 일치, 무인증 `/api/dashboard` 401, 로그인 창에 "이 PC에서 로그인 유지" 체크박스와 "오늘 할 일" 제목 표시 확인.
 - 남은 확인: 사용자가 체크박스를 켜고 로그인한 뒤 새로고침해도 로그인이 유지되는지, 실제 데이터에서 v3 홈 표시.
 - 되돌리기: `node node_modules/wrangler/bin/wrangler.js rollback be877638-1574-4963-8b4a-606e90df1964`, 코드는 main에서 `git revert -m 1 9e33011` 후 재배포.
+
+## 짧은 주소로 변경
+
+- `wrangler.jsonc` Worker 이름 `sp-sales-crm` → `crm`. 새 주소 `https://crm.piaoenya.workers.dev/`. 배포 전 같은 계정에 `crm` Worker가 없음을 확인했다.
+- `start-crm-sync.cmd`의 PC 수집 연결 주소를 새 주소로 변경. `tools/handling-preview-server.mjs`의 주소 허용 검사는 `crm`과 기존 `sp-sales-crm` workers.dev 주소만 허용(다른 도메인·접미사 위장 거부 확인).
+- README·문서 안내의 주소 갱신. 과거 작업 기록의 기존 주소는 당시 기록으로 보존.
+- 검증: `npm test` 210/210, `npm run build:remote` 성공. 배포 결과는 아래에 이어서 기록.
+- 기존 Worker `sp-sales-crm`은 삭제하지 않고 유지(마지막 배포 `c3711c78`). 삭제는 사용자 확인 후.

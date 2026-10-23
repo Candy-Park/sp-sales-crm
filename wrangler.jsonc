@@ -1,5 +1,5 @@
 {
- "name":"sp-sales-crm",
+ "name":"crm",
  "main":"src/remote-worker.mjs",
  "compatibility_date":"2026-10-13",
  "workers_dev":true,
