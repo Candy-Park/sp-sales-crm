@@ -12,8 +12,9 @@ test('priority puts overdue first, then today, then new mail judgment, then due 
   action:[row('soon',[act('s','2026-10-24')]),row('late',[act('l','2026-10-20','hq_inquiry')]),row('far',[act('f','2026-11-30')]),row('nodue',[act('n',null)])],
   decision:[row('mail',[],{thread:{observation:{next_action:'새 견적 요청 확인'}}})],
   waiting:[row('wait',[act('w',today,'customer_followup',{waiting_target:'고객'})]),row('wait2',[act('w2','2026-10-23')])]};
- const {items,more}=priorityItems(groups,{today});
- assert.deepEqual(items.map(i=>i.key),['a:l','a:w','d:mail','a:s']);
+ const {items,more}=priorityItems(groups,{today,limit:6});
+ assert.deepEqual(items.map(i=>i.key),['a:l','a:w','d:mail','a:s','a:n']);
+ assert.equal(items[4].reason,'기한 없음 · 기한 확인 필요 · 고객 회신');assert.equal(items[4].source,'fact');
  assert.equal(more,0);
  assert.equal(items[0].reason,'기한 2일 지남 · HQ 문의');
  assert.equal(items[1].reason,'오늘 기한 · 대기 중 후속 확인 · 고객 후속 확인');
@@ -73,7 +74,8 @@ test('brief shows a failure as unknown instead of zero and opens saved work from
 });
 test('waiting card lists who and when to follow up, and hero counts match the priority list',async()=>{
  const {waitingItems,homeCounts}=await import('../web/home-brief.mjs');
- const groups={...empty,action:[row('a',[act('1','2026-10-20'),act('2',today)])],waiting:[row('w2',[act('x',null)]),row('w1',[act('y','2026-10-25',undefined,{waiting_target:'HQ'})])]};
- assert.deepEqual(waitingItems(groups).map(i=>[i.id,i.who,i.due]),[['w1','HQ','2026-10-25'],['w2','','']]);
+ const groups={...empty,action:[row('a',[act('1','2026-10-20'),act('2',today)])],waiting:[row('w2',[act('x',null)],{review:{task_owner:'Jasmine 담당'}}),row('w1',[act('y','2026-10-25',undefined,{waiting_target:'HQ'})])]};
+ assert.deepEqual(waitingItems(groups).map(i=>[i.id,i.who,i.due]),[['w1','HQ','2026-10-25'],['w2','Jasmine 담당','']]);
  assert.deepEqual(homeCounts(groups,{today}),{first:2,overdue:1,dueToday:1,waiting:2});
+ assert.equal(homeCounts({...groups,action:[...groups.action,row('n',[act('3',null)])]},{today}).first,3);
 });
