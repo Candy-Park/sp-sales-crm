@@ -62,7 +62,7 @@ DB·SQL·API·Worker·인증·Outlook 수집 코드는 바꾸지 않았다. 로�
 
 Wrangler 로그인이 만료되어 다시 로그인했다. Bash(비대화형)에서는 OAuth 로그인이 불가해 터미널 탭에서 진행했다. 처음 자동 요청은 Wrangler 기본값으로 권한을 30개 가까이 요청해 취소하고, 계정 조회·사용자 조회·Workers 배포만 요청하는 최소 권한으로 다시 요청했다.
 
-브라우저에 남아 있던 다른 Cloudflare 계정(다른 Gmail 계정, 이메일 호스팅용 daum.net 계정)으로 승인이 두 번 처리됐다. 두 계정 모두 `sp-sales-crm` Worker가 없음을 `deployments list`로 확인하고 배포 전에 중단해 `wrangler logout`으로 로그인을 지웠다. 사용자가 Chrome의 Cloudflare를 배포 계정(piaoenya@gmail.com)으로 바꾼 뒤 승인 화면의 계정 이름을 확인하고 승인했다. 이후 배포 전에 계정과 Worker 존재를 먼저 확인하는 순서를 지킨다.
+브라우저에 남아 있던 다른 Cloudflare 계정(다른 Gmail 계정, 이메일 호스팅용 계정)으로 승인이 두 번 처리됐다. 두 계정 모두 `sp-sales-crm` Worker가 없음을 `deployments list`로 확인하고 배포 전에 중단해 `wrangler logout`으로 로그인을 지웠다. 사용자가 Chrome의 Cloudflare를 배포 계정으로 바꾼 뒤 승인 화면의 계정 이름을 확인하고 승인했다. 이후 배포 전에 계정과 Worker 존재를 먼저 확인하는 순서를 지킨다.
 
 ### 배포 복원 방법
 
