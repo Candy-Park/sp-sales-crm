@@ -14,7 +14,7 @@ const message=(id,text,error=false)=>{el(id).textContent=text;el(id).classList.t
 el('login-view').hidden=true;el('workspace').hidden=false;el('workspace').classList.add('task-preview');
 initGlassTheme({root:document.body,controls:document.querySelector('.account')});
 let work,agenda,review,follow,memos,memoImport,memoAgenda,brief,connectedUser=null,current='dashboard',epoch=0;
-const connection=initCRMConnection({onConnected(user){epoch++;memoImport?.reset();memos?.reset();connectedUser={...user,projectRef:'glscckjmlwvxilzneqdf'};el('user-email').textContent=user.email;follow.start();review.start();void memos.load();work.show('dashboard');void dashboard();},onDisconnected(){epoch++;connectedUser=null;brief?.reset();memoImport?.reset();follow?.stop();review?.stop();agenda?.stop();memos?.reset();memoAgenda?.reset();customerBoard.replaceChildren();taskMails.clear();work?.reset();memoPage.hidden=true;el('user-email').textContent='계정을 연결해 업무를 확인하세요.';for(const id of ['action-list','inquiry-list','outlook-list'])el(id).replaceChildren();for(const id of ['today-count','overdue-count','waiting-count'])el(id).textContent='—';message('dashboard-message','로그인 후 저장된 업무와 메모를 확인할 수 있습니다.');}});
+const connection=initCRMConnection({remember:true,onConnected(user){epoch++;memoImport?.reset();memos?.reset();connectedUser={...user,projectRef:'glscckjmlwvxilzneqdf'};el('user-email').textContent=user.email;follow.start();review.start();void memos.load();work.show('dashboard');void dashboard();},onDisconnected(){epoch++;connectedUser=null;brief?.reset();memoImport?.reset();follow?.stop();review?.stop();agenda?.stop();memos?.reset();memoAgenda?.reset();customerBoard.replaceChildren();taskMails.clear();work?.reset();memoPage.hidden=true;el('user-email').textContent='계정을 연결해 업무를 확인하세요.';for(const id of ['action-list','inquiry-list','outlook-list'])el(id).replaceChildren();for(const id of ['today-count','overdue-count','waiting-count'])el(id).textContent='—';message('dashboard-message','로그인 후 저장된 업무와 메모를 확인할 수 있습니다.');}});
 const api=connection.api;
 const customerBoard=document.createElement('section');customerBoard.id='mail-task-board';el('outlook-view').querySelector('h1').nextElementSibling.after(customerBoard);
 let taskMails=new Map();
@@ -52,7 +52,7 @@ for(const [id,label,category] of [['nav-customer','고객 업무','고객 업무
 const memoMenu=document.createElement('button');memoMenu.id='nav-memos';memoMenu.type='button';memoMenu.className='nav-button';memoMenu.textContent='메모';document.querySelector('.side-nav').append(memoMenu);function showMemos(reload=true){if(!connection.isConnected()){connection.show();return;}work.show('outlook');el('outlook-view').hidden=true;current='memos';memoPage.hidden=false;memoQuick.hidden=true;activate('nav-memos');if(reload)void memos.load();}
 memoMenu.addEventListener('click',()=>showMemos());
 el('nav-outlook').hidden=true;el('mobile-outlook').textContent='고객 업무';el('mobile-outlook').addEventListener('click',()=>el('nav-customer').click());
-el('nav-dashboard').textContent='홈 대시보드';el('dashboard-view').querySelector('h1').textContent='홈 대시보드';el('nav-register').textContent='문의 등록';
+el('nav-dashboard').textContent='홈 대시보드';el('dashboard-view').querySelector('h1').textContent='오늘 할 일';el('nav-register').textContent='문의 등록';
 const outlookView=el('outlook-view');outlookView.querySelector('h1').textContent='담당 업무';outlookView.querySelector('h1').nextElementSibling.textContent='동기화한 고객·HQ 업무입니다. 업무 상세에서 현재 할 일과 기한을 확인하세요.';
 for(const id of ['outlook-start','outlook-review-sync','outlook-workflow','outlook-classify','outlook-triage']){el(id).hidden=true;el(id).disabled=true;}
 el('outlook-classification-section').hidden=true;el('outlook-classification-filter').parentElement.hidden=true;
@@ -62,4 +62,4 @@ el('outlook-filter').value='reviewed';function mainCheck(){if(!connection.isConn
 const mailList=document.createElement('details'),mailListTitle=document.createElement('summary');mailListTitle.textContent='근거 메일 목록 펼치기';mailList.append(mailListTitle,el('outlook-list'),el('outlook-prev'),el('outlook-next'));customerBoard.after(mailList);
 window.addEventListener('beforeunload',event=>{if(memos.hasDraft()){event.preventDefault();event.returnValue='';}});
 work.show('dashboard');message('dashboard-message','로그인 후 저장된 업무와 메모를 확인할 수 있습니다.');el('user-email').textContent='PC가 꺼져도 저장된 업무 사용 가능';
-await connection.ready;connection.show();
+await connection.ready;if(!connection.isConnected())connection.show();
