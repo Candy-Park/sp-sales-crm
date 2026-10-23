@@ -48,3 +48,7 @@ DB·SQL·API·Worker 인증 검사는 바꾸지 않았다.
 - README·문서 안내의 주소 갱신. 과거 작업 기록의 기존 주소는 당시 기록으로 보존.
 - 검증: `npm test` 210/210, `npm run build:remote` 성공. 배포 결과는 아래에 이어서 기록.
 - 기존 Worker `sp-sales-crm`은 삭제하지 않고 유지(마지막 배포 `c3711c78`). 삭제는 사용자 확인 후.
+- 배포: [PR #8](https://github.com/Candy-Park/sp-sales-crm/pull/8) 병합 `1c55ceb` 후 배포 계정 확인, 새 Worker `crm` 버전 `7c27f855-aa44-44bd-9d7c-ad3413b499c0`.
+- 확인: 새 주소 홈 200, 공개 `app.js`·`style.css` 해시가 빌드와 일치(기존 주소의 v3와 같은 빌드), 무인증 `/api/dashboard`·`/api/memos` 401, 설정의 Supabase 주소 동일, CSP·nosniff·no-referrer 유지, 사용자 Chrome에서 "오늘 할 일" 제목과 로그인 유지 체크박스 표시. 기존 주소도 아직 200(삭제 전).
+- 로그인 유지는 주소(도메인)별로 저장되므로 새 주소에서 한 번 다시 체크하고 로그인해야 한다. PC 수집 연결은 다음 `start-crm-sync.cmd` 실행부터 새 주소를 쓴다(PC 미연결 상태라 실제 연결은 미확인).
+- 되돌리기: `wrangler.jsonc` 이름·`start-crm-sync.cmd` 주소를 되돌리는 커밋 후 기존 주소로 다시 배포. 기존 Worker는 남아 있어 바로 사용 가능.
