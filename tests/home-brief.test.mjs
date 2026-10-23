@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {priorityItems,uncertainItems,initHomeBrief} from '../web/home-brief.mjs';
+import {priorityItems,uncertainItems,initHomeBrief,shortLine} from '../web/home-brief.mjs';
 
 const today='2026-10-22';
 const row=(id,actions,extra={})=>({id,title:'업무 '+id,actions,review:{task_owner:'Candy'},...extra});
@@ -21,6 +21,15 @@ test('priority puts overdue first, then today, then new mail judgment, then due 
  assert.equal(items[2].source,'suggest');assert.equal(items[2].reason,'새 메일 도착 · 판단 필요');
  assert.equal(items[3].reason,'2일 뒤 기한 · 고객 회신');
  assert.equal(items[0].source,'fact');assert.equal(items[0].id,'late');
+ assert.deepEqual(items.map(i=>i.chip),[{label:'2일 지남',tone:'late'},{label:'오늘',tone:'today'},{label:'새 메일',tone:'new'},{label:'2일 뒤',tone:'soon'},{label:'기한 없음',tone:'none'}]);
+ assert.equal(items[0].kindLabel,'HQ 문의');
+});
+
+test('short line keeps the first clause of a long saved description',()=>{
+ assert.equal(shortLine('다산 고객에게 패킹 사양서 회신 — Jane의 두 범위 답변 수신 완료(사용자 확인)'),'다산 고객에게 패킹 사양서 회신');
+ assert.equal(shortLine('짧은 설명'),'짧은 설명');
+ const long='가'.repeat(80);assert.equal(shortLine(long),'가'.repeat(56)+'…');
+ assert.equal(shortLine(''),'');
 });
 
 test('completed work and closed history never become priorities, and the list is capped with a remainder count',()=>{
@@ -62,9 +71,8 @@ test('brief shows a failure as unknown instead of zero and opens saved work from
  brief.update({groups:{...empty,action:[row('late',[act('l','2026-10-20')]),row('owner',[act('o',null)],{review:{}})]},dashboard:{},analysis:{candidates:[]}});
  assert.match(texts(checkRoot).join('|'),/담당자가 확인되지 않은 업무 1건/);
  const all=texts(priorityRoot).join('|');
- assert.match(all,/할 일 l\|확인\|/);assert.match(all,/이유: 기한 2일 지남 · 고객 회신/);
- const button=JSON.stringify(priorityRoot).includes('업무 열기');assert.ok(button);
- const find=(n)=>n.tag==='button'&&n.textContent==='업무 열기'?n:n.children.map(find).find(Boolean);
+ assert.match(all,/업무 late/);assert.match(all,/2일 지남/);assert.match(all,/고객 회신 · 할 일 l/);
+ const find=(n)=>n.tag==='button'&&n.textContent==='열기'?n:n.children.map(find).find(Boolean);
  find(priorityRoot).events.click();assert.deepEqual(opened,['late']);
  brief.fail('네트워크 오류');
  assert.match(texts(priorityRoot).join('|'),/업무를 불러오지 못했습니다/);
@@ -78,4 +86,18 @@ test('waiting card lists who and when to follow up, and hero counts match the pr
  assert.deepEqual(waitingItems(groups).map(i=>[i.id,i.who,i.due]),[['w1','HQ','2026-10-25'],['w2','Jasmine 담당','']]);
  assert.deepEqual(homeCounts(groups,{today}),{first:2,overdue:1,dueToday:1,waiting:2});
  assert.equal(homeCounts({...groups,action:[...groups.action,row('n',[act('3',null)])]},{today}).first,3);
+});
+
+test('first screen shows only the top three todos with the remainder count, and one status line',()=>{
+ globalThis.document={createElement:tag=>new Node(tag)};
+ const priorityRoot=new Node('section'),checkRoot=new Node('section'),statusRoot=new Node('div');
+ const brief=initHomeBrief({priorityRoot,checkRoot,statusRoot,open(){},today:()=>today});
+ const many=Array.from({length:5},(_,n)=>row('r'+n,[act('x'+n,'2026-10-1'+n)]));
+ brief.update({groups:{...empty,action:many,waiting:[row('w',[act('y',null)])]},dashboard:{},analysis:{}});
+ const items=[];const walk=n=>{if(n.className==='priority-item')items.push(n);n.children.forEach(walk);};walk(priorityRoot);
+ assert.equal(items.length,3);
+ assert.match(texts(priorityRoot).join('|'),/전체 할 일 보기 · 2건 더/);
+ brief.setFollow({remote:true,agent_online:false,last_synced_at:'2026-10-13T14:48:00Z'});
+ const status=texts(statusRoot).join('|');
+ assert.match(status,/기한 지남 5/);assert.match(status,/답변 대기 1/);assert.match(status,/확인 필요 2/);assert.match(status,/메일 수집 PC 미연결 · 마지막 10\/13/);
 });

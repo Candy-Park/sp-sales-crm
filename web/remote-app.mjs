@@ -52,7 +52,7 @@ for(const [id,label,category] of [['nav-customer','고객 업무','고객 업무
 const memoMenu=document.createElement('button');memoMenu.id='nav-memos';memoMenu.type='button';memoMenu.className='nav-button';memoMenu.textContent='메모';document.querySelector('.side-nav').append(memoMenu);function showMemos(reload=true){if(!connection.isConnected()){connection.show();return;}work.show('outlook');el('outlook-view').hidden=true;current='memos';memoPage.hidden=false;memoQuick.hidden=true;activate('nav-memos');if(reload)void memos.load();}
 memoMenu.addEventListener('click',()=>showMemos());
 el('nav-outlook').hidden=true;el('mobile-outlook').textContent='고객 업무';el('mobile-outlook').addEventListener('click',()=>el('nav-customer').click());
-el('nav-dashboard').textContent='홈 대시보드';el('dashboard-view').querySelector('h1').textContent='홈 대시보드';el('nav-register').textContent='문의 등록';
+el('nav-dashboard').textContent='홈 대시보드';el('dashboard-view').querySelector('h1').textContent='오늘 할 일';el('nav-register').textContent='문의 등록';
 const outlookView=el('outlook-view');outlookView.querySelector('h1').textContent='담당 업무';outlookView.querySelector('h1').nextElementSibling.textContent='동기화한 고객·HQ 업무입니다. 업무 상세에서 현재 할 일과 기한을 확인하세요.';
 for(const id of ['outlook-start','outlook-review-sync','outlook-workflow','outlook-classify','outlook-triage']){el(id).hidden=true;el(id).disabled=true;}
 el('outlook-classification-section').hidden=true;el('outlook-classification-filter').parentElement.hidden=true;

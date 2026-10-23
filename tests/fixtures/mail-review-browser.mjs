@@ -53,6 +53,7 @@ const review=initThreadReview({root,api,isConnected:()=>connected,open:id=>work.
 const follow=initFollowups({root:followRoot,api,title:'연결 상태',showButton:false,onStatus:s=>brief.setFollow(s),isConnected:()=>connected,open:id=>work.open(id),onChecked:async()=>{await api('/api/followups','POST',{operation:'reconcile'});agenda.start();}});
 const agendaRoot=document.createElement('section');agendaRoot.className='task-panel';root.before(agendaRoot);
 const brief=mountHomeBrief({view:el('dashboard-view'),open:id=>work.open(id),onMain:()=>{agenda.start();follow.checkNow();},agendaRoot,followRoot,reviewRoot:root});
+el('dashboard-view').querySelector('h1').textContent='오늘 할 일';el('today-label').textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'long'}).format(new Date());
 for(const id of ['action-list','inquiry-list'])el(id).closest('section').hidden=true;
 const agenda=initWorkAgenda({root:agendaRoot,api,isConnected:()=>connected,open:id=>work.open(id),onData:d=>brief.update(d),onError:m=>brief.fail(m)});agenda.start();
 for(const [label,handler] of [
