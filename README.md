@@ -19,7 +19,7 @@ AI는 기획·코딩·디버깅·검증에 활용했습니다. CRM 자체의 AI 
 
 ## 계획과 실제 결과
 
-2026-10-13 이후 무료 외부 접속 확장을 진행했습니다. [외부 CRM](https://sp-sales-crm.piaoenya.workers.dev/)은 허용된 계정으로 로그인해야 하며 PC가 꺼져도 저장된 업무와 메모를 사용합니다. 새 Outlook 수집에는 PC의 인증 연결과 Outlook 실행이 필요합니다. 배포·검수 근거와 남은 한계는 [외부 접속 작업 기록](docs/operations/2026-10-13-remote-access.md)을 확인하세요. 최초 1차 MVP 마감 범위와 이후 확장을 구분합니다.
+2026-10-13 이후 무료 외부 접속 확장을 진행했습니다. [외부 CRM](https://crm.piaoenya.workers.dev/)은 허용된 계정으로 로그인해야 하며 PC가 꺼져도 저장된 업무와 메모를 사용합니다. 새 Outlook 수집에는 PC의 인증 연결과 Outlook 실행이 필요합니다. 배포·검수 근거와 남은 한계는 [외부 접속 작업 기록](docs/operations/2026-10-13-remote-access.md)을 확인하세요. 최초 1차 MVP 마감 범위와 이후 확장을 구분합니다.
 
 - [최초 보존 계획서 — 2026-10-06 v0.2](docs/development-plan-initial.md)
 - [현행 기획서](docs/development-plan.md)
