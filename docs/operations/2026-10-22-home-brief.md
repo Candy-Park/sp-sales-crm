@@ -79,6 +79,14 @@ Wrangler 로그인이 만료되어 다시 로그인했다. Bash(비대화형)에
 
 같이 확인한 운영 문제: 연결 상태가 "PC 미연결 · 마지막 동기화 10월 13일"이다. 그 뒤 메일은 CRM에 반영되지 않았으며, 다시 수집하려면 PC에서 start-crm-sync.cmd 실행과 Outlook 실행이 필요하다. 이번 화면 수정과는 별개다.
 
+### 수정 배포 (2026-10-23)
+
+- [PR #4](https://github.com/Candy-Park/sp-sales-crm/pull/4) 병합 `867b353`. 배포 전 Wrangler 계정이 배포 계정이고 `sp-sales-crm` Worker가 있는지 먼저 확인했다.
+- main에서 테스트 203/203·빌드 후 배포. 이전 버전 `cde742b6` → 새 버전 `be877638-1574-4963-8b4a-606e90df1964`. 변경 정적 파일은 `app.js` 1개.
+- 배포 후 공개 `app.js`·`style.css` 해시가 로컬 빌드와 일치, 무인증 `/api/dashboard` 401.
+- 로그인 후 수정 화면 확인은 사용자 재로그인이 필요하다(새로고침 시 로그인 정보를 남기지 않는 기존 설계).
+- 되돌리기: `node node_modules/wrangler/bin/wrangler.js rollback cde742b6-e01e-4115-85a8-3e52793398fc`, 코드는 main에서 `git revert -m 1 867b353` 후 재배포.
+
 ## 커밋·원격
 
 시작 기준은 `claude/session-record-2026-10-22`(db8a263)에서 만든 `claude/home-brief` 브랜치다. 이 브랜치에 커밋하고 push한다. main 병합과 Cloudflare 배포는 사용자 확인 후 진행한다.
