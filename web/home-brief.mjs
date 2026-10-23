@@ -16,6 +16,7 @@ export function priorityItems(groups,{today,pending=[],limit=5}={}){
    if(due&&due<today){rank=0;reason=`기한 ${gap(due,today)}일 지남`;}
    else if(due===today){rank=1;reason='오늘 기한';}
    else if(key!=='waiting'&&due&&gap(today,due)<=3){rank=3;reason=`${gap(today,due)}일 뒤 기한`;}
+   else if(key!=='waiting'&&!due){rank=4;reason='기한 없음 · 기한 확인 필요';}
    else continue;
    if(key==='waiting')reason+=' · 대기 중 후속 확인';
    if(KIND[a.kind])reason+=' · '+KIND[a.kind];
@@ -49,7 +50,7 @@ export function uncertainItems({groups,dashboard={},follow}){
 export function waitingItems(groups){
  return (groups.waiting||[]).map(row=>{
   const due=(row.actions||[]).map(a=>a.due_date).filter(Boolean).sort()[0]||'';
-  const who=(row.actions||[]).find(a=>a.waiting_target)?.waiting_target||'';
+  const who=(row.actions||[]).find(a=>a.waiting_target)?.waiting_target||row.review?.task_owner||'';
   return {id:row.id,title:row.review?.task_title||row.title||'저장된 업무',who,due,next:row.thread?.observation?.next_action||row.next_action||''};
  }).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
 }
@@ -118,7 +119,7 @@ export function initHomeBrief({priorityRoot,checkRoot,waitingRoot,heroRoot,open,
   if(!items.length)wList.append(make('li','기다리는 업무가 없습니다.','empty'));
   for(const item of items){
    const li=make('li','','waiting-item'),body=make('div','','priority-body');
-   body.append(make('strong',item.title),make('p',[item.who?'대기: '+item.who:'대기 대상 확인 필요',item.due?'후속 확인 '+item.due:'후속 확인 날짜 미지정'].join(' · '),'priority-reason'));
+   body.append(make('strong',item.title),make('p',[item.who?'대기·담당: '+item.who:'대기 대상 확인 필요',item.due?'후속 확인 '+item.due:'후속 확인 날짜 미지정'].join(' · '),'priority-reason'));
    if(item.next)body.append(make('small',item.next));
    li.append(body,openButton(item.id,open));wList.append(li);
   }
@@ -128,7 +129,7 @@ export function initHomeBrief({priorityRoot,checkRoot,waitingRoot,heroRoot,open,
   if(failure){pList.append(make('li','업무를 불러오지 못했습니다. 0건이 아니라 확인되지 않은 상태입니다.','empty'));return;}
   if(!last){pList.append(make('li','CRM 연결 후 우선할 일을 정리합니다.','empty'));return;}
   const {items,more}=priorityItems(last.groups,{today:today(),pending:pendingOf()});pHead.meta.textContent=(items.length+more)+'건';
-  if(!items.length)pList.append(make('li','기한 지남·오늘·3일 안 기한인 할 일과 새로 판단할 메일이 없습니다.','empty'));
+  if(!items.length)pList.append(make('li','기한 지남·오늘·3일 안 기한·기한 없는 할 일과 새로 판단할 메일이 없습니다.','empty'));
   for(const item of items){
    const li=make('li','','priority-item'),body=make('div','','priority-body');
    body.append(withBadge(make('strong',item.text),item.source),make('p','이유: '+item.reason,'priority-reason'),make('small',item.title));
