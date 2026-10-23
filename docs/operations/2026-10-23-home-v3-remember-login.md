@@ -32,3 +32,11 @@ DB·SQL·API·Worker 인증 검사는 바꾸지 않았다.
 ## 복원 방법
 
 배포 후 문제가 있으면 직전 Worker 버전으로 rollback하고, 코드는 해당 병합 커밋을 `git revert -m 1` 후 재배포한다. 저장된 로그인은 로그아웃하면 지워진다. DB 변경은 없다.
+
+## 병합·배포
+
+- [PR #6](https://github.com/Candy-Park/sp-sales-crm/pull/6) 병합 `9e33011`. 배포 전 Wrangler 계정이 배포 계정이고 `sp-sales-crm` Worker가 있는지 확인했다.
+- main에서 테스트 210/210·빌드 후 배포. 이전 버전 `be877638-1574-4963-8b4a-606e90df1964` → 새 버전 `c3711c78-0bdc-4727-ac1c-914a7c713d65`. 변경 정적 파일 `app.js`, `style.css`.
+- 배포 후 공개 `app.js`·`style.css` 해시 일치, 무인증 `/api/dashboard` 401, 로그인 창에 "이 PC에서 로그인 유지" 체크박스와 "오늘 할 일" 제목 표시 확인.
+- 남은 확인: 사용자가 체크박스를 켜고 로그인한 뒤 새로고침해도 로그인이 유지되는지, 실제 데이터에서 v3 홈 표시.
+- 되돌리기: `node node_modules/wrangler/bin/wrangler.js rollback be877638-1574-4963-8b4a-606e90df1964`, 코드는 main에서 `git revert -m 1 9e33011` 후 재배포.
